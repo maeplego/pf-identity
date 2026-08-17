@@ -8,7 +8,7 @@ coverage.out
 coverage.html
 vendor/
 
-# Secrets — never commit
+# Secrets
 .env
 .env.*
 !.env.example
@@ -16,6 +16,9 @@ vendor/
 *.key
 *.p12
 dev-keys/
+
+# Chat dumps if any land here
+chat-context/
 
 # IDE / OS
 .idea/
