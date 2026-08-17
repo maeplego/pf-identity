@@ -1,6 +1,7 @@
 package web
 
 import (
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -21,7 +22,7 @@ func (s *Server) handleRegisterForm(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil || !s.checkCSRF(r) {
-		s.failForm(w, r, "register", "登録", "フォームをやり直してください。")
+		s.failForm(w, r, "register", "登録", "フォームをやり直してください。", http.StatusBadRequest)
 		return
 	}
 	cont := safeContinue(r.FormValue("continue"))
@@ -35,7 +36,7 @@ func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
 		if err == domain.ErrConflict {
 			msg = "このメールは既に使われています。"
 		}
-		s.failForm(w, r, "register", "登録", msg)
+		s.failForm(w, r, "register", "登録", msg, http.StatusBadRequest)
 		return
 	}
 	s.startSessionAndRedirect(w, r, u.ID, cont)
@@ -52,14 +53,26 @@ func (s *Server) handleLoginForm(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil || !s.checkCSRF(r) {
-		s.failForm(w, r, "login", "ログイン", "フォームをやり直してください。")
+		s.failForm(w, r, "login", "ログイン", "フォームをやり直してください。", http.StatusBadRequest)
 		return
 	}
 	cont := safeContinue(r.FormValue("continue"))
-	u, err := s.Accounts.Authenticate(r.Context(), r.FormValue("email"), r.FormValue("password"))
-	if err != nil {
-		s.failForm(w, r, "login", "ログイン", "メールまたはパスワードが違います。")
+	email := r.FormValue("email")
+	limitKey := loginKey(r, email)
+	if s.Logins != nil && s.Logins.Limited(limitKey) {
+		s.failForm(w, r, "login", "ログイン", "試行が多すぎます。しばらく待ってください。", http.StatusTooManyRequests)
 		return
+	}
+	u, err := s.Accounts.Authenticate(r.Context(), email, r.FormValue("password"))
+	if err != nil {
+		if s.Logins != nil {
+			s.Logins.Failure(limitKey)
+		}
+		s.failForm(w, r, "login", "ログイン", "メールまたはパスワードが違います。", http.StatusBadRequest)
+		return
+	}
+	if s.Logins != nil {
+		s.Logins.Success(limitKey)
 	}
 	s.startSessionAndRedirect(w, r, u.ID, cont)
 }
@@ -108,13 +121,13 @@ func (s *Server) startSessionAndRedirect(w http.ResponseWriter, r *http.Request,
 	http.Redirect(w, r, cont, http.StatusSeeOther)
 }
 
-func (s *Server) failForm(w http.ResponseWriter, r *http.Request, view, title, msg string) {
+func (s *Server) failForm(w http.ResponseWriter, r *http.Request, view, title, msg string, status int) {
 	tok, err := s.issueCSRF(w)
 	if err != nil {
 		http.Error(w, "csrf", http.StatusInternalServerError)
 		return
 	}
-	s.render(w, view, pageData{Title: title, CSRF: tok, Error: msg, Continue: safeContinue(r.FormValue("continue"))}, http.StatusBadRequest)
+	s.render(w, view, pageData{Title: title, CSRF: tok, Error: msg, Continue: safeContinue(r.FormValue("continue"))}, status)
 }
 
 // safeContinue only allows a relative /authorize URL so login cannot bounce to an open redirect.
@@ -133,4 +146,12 @@ func safeContinue(raw string) string {
 		return ""
 	}
 	return u.String()
+}
+
+func loginKey(r *http.Request, email string) string {
+	ip := r.RemoteAddr
+	if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
+		ip = host
+	}
+	return ip + "\n" + strings.ToLower(strings.TrimSpace(email))
 }

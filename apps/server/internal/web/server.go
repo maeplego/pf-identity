@@ -13,6 +13,7 @@ import (
 	"github.com/portfolio/pf-identity-server/internal/config"
 	"github.com/portfolio/pf-identity-server/internal/domain"
 	"github.com/portfolio/pf-identity-server/internal/oidc"
+	"github.com/portfolio/pf-identity-server/internal/ratelimit"
 	"github.com/portfolio/pf-identity-server/internal/session"
 )
 
@@ -49,6 +50,7 @@ type Server struct {
 	Repos    domain.Repos
 	Signer   *oidc.Signer
 	Clock    clock.Clock
+	Logins   *ratelimit.Limiter
 
 	mux *http.ServeMux
 	tpl map[string]*template.Template
@@ -66,6 +68,7 @@ func NewServer(cfg config.Config, acc *account.Service, sess *session.Service, r
 		Repos:    repos,
 		Signer:   signer,
 		Clock:    clk,
+		Logins:   ratelimit.New(5, time.Minute, clk),
 		pending:  map[string]pendingAuth{},
 		tpl:      map[string]*template.Template{},
 		mux:      http.NewServeMux(),
