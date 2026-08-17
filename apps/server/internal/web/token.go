@@ -62,7 +62,7 @@ func (s *Server) tokenAuthCode(w http.ResponseWriter, r *http.Request) {
 		clientError(w, http.StatusBadRequest, "invalid_grant", "pkce verification failed")
 		return
 	}
-	s.writeTokenResponse(w, r, client, row.UserID, row.Scopes, row.Nonce, oauth.Contains(row.Scopes, "offline_access"))
+	s.writeTokenResponse(w, r, client, row.UserID, row.Scopes, row.Nonce, oauth.Contains(row.Scopes, "offline_access"), "")
 }
 
 func (s *Server) tokenRefresh(w http.ResponseWriter, r *http.Request) {
@@ -72,26 +72,23 @@ func (s *Server) tokenRefresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	plain := r.FormValue("refresh_token")
-	row, err := s.Repos.GetRefresh(r.Context(), oauth.HashToken(plain))
+	row, err := s.Repos.TakeRefresh(r.Context(), oauth.HashToken(plain))
 	if err != nil {
+		if existing, gerr := s.Repos.GetRefresh(r.Context(), oauth.HashToken(plain)); gerr == nil {
+			_ = s.Repos.RevokeFamily(r.Context(), existing.FamilyID)
+		}
 		clientError(w, http.StatusBadRequest, "invalid_grant", "refresh token invalid")
 		return
 	}
-	if row.Revoked || !row.ExpiresAt.After(s.now()) || row.ClientID != client.ID {
+	if !row.ExpiresAt.After(s.now()) || row.ClientID != client.ID {
 		_ = s.Repos.RevokeFamily(r.Context(), row.FamilyID)
 		clientError(w, http.StatusBadRequest, "invalid_grant", "refresh token reuse or expiry")
 		return
 	}
-	// Rotation: the presented token is retired by revoking the whole family then minting a child.
-	// Reuse of an old token therefore kills the family (detected via Revoked on the next attempt).
-	if err := s.Repos.RevokeFamily(r.Context(), row.FamilyID); err != nil {
-		clientError(w, http.StatusInternalServerError, "server_error", "could not rotate")
-		return
-	}
-	s.writeTokenResponse(w, r, client, row.UserID, row.Scopes, "", true)
+	s.writeTokenResponse(w, r, client, row.UserID, row.Scopes, "", true, row.FamilyID)
 }
 
-func (s *Server) writeTokenResponse(w http.ResponseWriter, r *http.Request, client domain.Client, userID string, scopes []string, nonce string, withRefresh bool) {
+func (s *Server) writeTokenResponse(w http.ResponseWriter, r *http.Request, client domain.Client, userID string, scopes []string, nonce string, withRefresh bool, familyID string) {
 	user, err := s.Repos.GetByID(r.Context(), userID)
 	if err != nil {
 		clientError(w, http.StatusBadRequest, "invalid_grant", "user missing")
@@ -130,10 +127,12 @@ func (s *Server) writeTokenResponse(w http.ResponseWriter, r *http.Request, clie
 			clientError(w, http.StatusInternalServerError, "server_error", "refresh")
 			return
 		}
-		family := id.New()
+		if familyID == "" {
+			familyID = id.New()
+		}
 		if err := s.Repos.PutRefresh(r.Context(), domain.RefreshToken{
 			Hash:      oauth.HashToken(refreshPlain),
-			FamilyID:  family,
+			FamilyID:  familyID,
 			ClientID:  client.ID,
 			UserID:    userID,
 			Scopes:    scopes,
@@ -223,4 +222,3 @@ func bearer(r *http.Request) string {
 	}
 	return strings.TrimSpace(h[7:])
 }
-

@@ -32,6 +32,8 @@ type AuthCodes interface {
 type RefreshTokens interface {
 	PutRefresh(ctx context.Context, t RefreshToken) error
 	GetRefresh(ctx context.Context, hash string) (RefreshToken, error)
+	// TakeRefresh marks one still-active token revoked so concurrent rotation cannot mint two children.
+	TakeRefresh(ctx context.Context, hash string) (RefreshToken, error)
 	RevokeFamily(ctx context.Context, familyID string) error
 }
 

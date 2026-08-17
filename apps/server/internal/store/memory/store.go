@@ -154,6 +154,21 @@ func (s *Store) GetRefresh(_ context.Context, hash string) (domain.RefreshToken,
 	return t, nil
 }
 
+func (s *Store) TakeRefresh(_ context.Context, hash string) (domain.RefreshToken, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	t, ok := s.refresh[hash]
+	if !ok {
+		return domain.RefreshToken{}, domain.ErrNotFound
+	}
+	if t.Revoked {
+		return domain.RefreshToken{}, domain.ErrUsed
+	}
+	t.Revoked = true
+	s.refresh[hash] = t
+	return t, nil
+}
+
 func (s *Store) RevokeFamily(_ context.Context, familyID string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

@@ -248,6 +248,153 @@ func TestAuthorizationCodePKCEAndReplay(t *testing.T) {
 	}
 }
 
+func TestRefreshRotationReuseRevokesFamily(t *testing.T) {
+	srv, store := testServer(t)
+	redirect := "http://127.0.0.1/cb"
+	_ = store.CreateClient(context.Background(), domain.Client{
+		ID:           "rp-refresh",
+		Name:         "RP",
+		Type:         domain.ClientPublic,
+		RedirectURIs: []string{redirect},
+	})
+	ts := httptest.NewServer(srv)
+	t.Cleanup(ts.Close)
+
+	tokens := mintOfflineTokens(t, ts, "rp-refresh", redirect, "r@example.com")
+	oldRefresh := tokens["refresh_token"].(string)
+
+	rotated, err := http.PostForm(ts.URL+"/token", url.Values{
+		"grant_type":    {"refresh_token"},
+		"client_id":     {"rp-refresh"},
+		"refresh_token": {oldRefresh},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, _ := io.ReadAll(rotated.Body)
+	rotated.Body.Close()
+	if rotated.StatusCode != http.StatusOK {
+		t.Fatalf("rotate %d %s", rotated.StatusCode, raw)
+	}
+	var next map[string]any
+	if err := json.Unmarshal(raw, &next); err != nil {
+		t.Fatal(err)
+	}
+	newRefresh := next["refresh_token"].(string)
+	if newRefresh == "" || newRefresh == oldRefresh {
+		t.Fatalf("expected a new refresh token: %v", next)
+	}
+
+	reuse, err := http.PostForm(ts.URL+"/token", url.Values{
+		"grant_type":    {"refresh_token"},
+		"client_id":     {"rp-refresh"},
+		"refresh_token": {oldRefresh},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	reuse.Body.Close()
+	if reuse.StatusCode == http.StatusOK {
+		t.Fatal("reused refresh must fail")
+	}
+
+	child, err := http.PostForm(ts.URL+"/token", url.Values{
+		"grant_type":    {"refresh_token"},
+		"client_id":     {"rp-refresh"},
+		"refresh_token": {newRefresh},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	child.Body.Close()
+	if child.StatusCode == http.StatusOK {
+		t.Fatal("family must be revoked after reuse")
+	}
+}
+
+func mintOfflineTokens(t *testing.T, ts *httptest.Server, clientID, redirect, email string) map[string]any {
+	t.Helper()
+	jar, _ := cookiejar.New(nil)
+	client := &http.Client{
+		Jar: jar,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if strings.HasPrefix(req.URL.String(), redirect) {
+				return http.ErrUseLastResponse
+			}
+			return nil
+		},
+	}
+	res, err := client.Get(ts.URL + "/register")
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, _ := io.ReadAll(res.Body)
+	res.Body.Close()
+	res, err = client.PostForm(ts.URL+"/register", url.Values{
+		"csrf":     {csrfFrom(string(body))},
+		"email":    {email},
+		"password": {"long-enough"},
+		"name":     {"R"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	res.Body.Close()
+
+	verifier := strings.Repeat("b", 43)
+	sum := sha256.Sum256([]byte(verifier))
+	challenge := base64.RawURLEncoding.EncodeToString(sum[:])
+	res, err = client.Get(ts.URL + "/authorize?" + url.Values{
+		"response_type":         {"code"},
+		"client_id":             {clientID},
+		"redirect_uri":          {redirect},
+		"scope":                 {"openid offline_access"},
+		"state":                 {"st"},
+		"nonce":                 {"n"},
+		"code_challenge":        {challenge},
+		"code_challenge_method": {"S256"},
+	}.Encode())
+	if err != nil {
+		t.Fatal(err)
+	}
+	htmlBytes, _ := io.ReadAll(res.Body)
+	res.Body.Close()
+	html := string(htmlBytes)
+	res, err = client.PostForm(ts.URL+"/consent", url.Values{
+		"csrf":       {csrfFrom(html)},
+		"request_id": {between(html, `name="request_id" value="`, `"`)},
+		"decision":   {"allow"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	loc, err := res.Location()
+	res.Body.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	tokRes, err := http.PostForm(ts.URL+"/token", url.Values{
+		"grant_type":    {"authorization_code"},
+		"client_id":     {clientID},
+		"code":          {loc.Query().Get("code")},
+		"redirect_uri":  {redirect},
+		"code_verifier": {verifier},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, _ := io.ReadAll(tokRes.Body)
+	tokRes.Body.Close()
+	if tokRes.StatusCode != http.StatusOK {
+		t.Fatalf("token %d %s", tokRes.StatusCode, raw)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		t.Fatal(err)
+	}
+	return payload
+}
+
 func TestRejectsAlteredRedirectURI(t *testing.T) {
 	srv, store := testServer(t)
 	_ = store.CreateClient(context.Background(), domain.Client{
