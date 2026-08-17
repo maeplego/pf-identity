@@ -9,8 +9,13 @@ import (
 	"net/http/cookiejar"
 	"net/http/httptest"
 	"net/url"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/portfolio/pf-identity-server/internal/domain"
+	"github.com/portfolio/pf-identity-server/internal/id"
 )
 
 func TestAdminRequiresToken(t *testing.T) {
@@ -161,6 +166,57 @@ func TestAdminDisableUserAndAuditLoginFail(t *testing.T) {
 	aud.Body.Close()
 	if aud.StatusCode != http.StatusOK || !bytes.Contains(audBody, []byte(`"login_fail"`)) {
 		t.Fatalf("audits %d %s", aud.StatusCode, audBody)
+	}
+}
+
+func TestAdminAuditPaging(t *testing.T) {
+	srv, store := testServer(t)
+	srv.Cfg.AdminToken = "admin-test-token"
+	ts := httptest.NewServer(srv)
+	t.Cleanup(ts.Close)
+	now := time.Date(2026, 8, 17, 7, 0, 0, 0, time.UTC)
+	for i := 0; i < 3; i++ {
+		if err := store.AppendAudit(context.Background(), domain.AuditEvent{
+			ID:   id.New(),
+			Type: domain.AuditLoginFail,
+			At:   now.Add(time.Duration(i) * time.Second),
+			Note: strconv.Itoa(i),
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	p1 := adminJSON(t, ts.URL, "admin-test-token", http.MethodGet, "/admin/api/audits?limit=2", "")
+	raw, _ := io.ReadAll(p1.Body)
+	p1.Body.Close()
+	if p1.StatusCode != http.StatusOK {
+		t.Fatalf("page1 %d %s", p1.StatusCode, raw)
+	}
+	var page struct {
+		Items []struct {
+			Note string `json:"note"`
+			ID   string `json:"id"`
+		} `json:"items"`
+		Next string `json:"next"`
+	}
+	if err := json.Unmarshal(raw, &page); err != nil {
+		t.Fatal(err)
+	}
+	if len(page.Items) != 2 || page.Items[0].Note != "2" || page.Next == "" {
+		t.Fatalf("%s", raw)
+	}
+	p2 := adminJSON(t, ts.URL, "admin-test-token", http.MethodGet, "/admin/api/audits?limit=2&after="+page.Next, "")
+	raw2, _ := io.ReadAll(p2.Body)
+	p2.Body.Close()
+	if err := json.Unmarshal(raw2, &page); err != nil {
+		t.Fatal(err)
+	}
+	if p2.StatusCode != http.StatusOK || len(page.Items) != 1 || page.Items[0].Note != "0" || page.Next != "" {
+		t.Fatalf("page2 %d %s", p2.StatusCode, raw2)
+	}
+	bad := adminJSON(t, ts.URL, "admin-test-token", http.MethodGet, "/admin/api/audits?after=missing", "")
+	bad.Body.Close()
+	if bad.StatusCode != http.StatusBadRequest {
+		t.Fatalf("bad cursor %d", bad.StatusCode)
 	}
 }
 

@@ -193,9 +193,19 @@ func Repos(t *testing.T, s domain.Repos) {
 		if err := s.AppendAudit(ctx, domain.AuditEvent{ID: id.New(), Type: domain.AuditConsent, At: now.Add(time.Second), Note: "b"}); err != nil {
 			t.Fatal(err)
 		}
-		ev, err := s.ListAudits(ctx, 1)
-		if err != nil || len(ev) != 1 || ev[0].Note != "b" {
-			t.Fatalf("audits newest first: %v %+v", err, ev)
+		if err := s.AppendAudit(ctx, domain.AuditEvent{ID: id.New(), Type: domain.AuditTokenIssue, At: now.Add(2 * time.Second), Note: "c"}); err != nil {
+			t.Fatal(err)
+		}
+		page1, err := s.ListAudits(ctx, 2, "")
+		if err != nil || len(page1.Items) != 2 || page1.Items[0].Note != "c" || page1.Next == "" {
+			t.Fatalf("page1: %v %+v", err, page1)
+		}
+		page2, err := s.ListAudits(ctx, 2, page1.Next)
+		if err != nil || len(page2.Items) != 1 || page2.Items[0].Note != "a" || page2.Next != "" {
+			t.Fatalf("page2: %v %+v", err, page2)
+		}
+		if _, err := s.ListAudits(ctx, 2, "missing"); err != domain.ErrNotFound {
+			t.Fatalf("missing cursor: %v", err)
 		}
 		if err := s.SetUserDisabled(ctx, "missing", true); err != domain.ErrNotFound {
 			t.Fatalf("missing user: %v", err)

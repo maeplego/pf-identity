@@ -74,10 +74,19 @@ export async function listUsers(): Promise<User[]> {
   return (await res.json()) as User[];
 }
 
-export async function listAudits(): Promise<Audit[]> {
-  const res = await adminFetch("/admin/api/audits");
+export type AuditPage = {
+  items: Audit[];
+  next: string;
+};
+
+export async function listAudits(after = "", limit = 20): Promise<AuditPage> {
+  const q = new URLSearchParams({ limit: String(limit) });
+  if (after) {
+    q.set("after", after);
+  }
+  const res = await adminFetch(`/admin/api/audits?${q.toString()}`);
   if (!res.ok) {
     throw new Error(`list audits ${res.status}`);
   }
-  return (await res.json()) as Audit[];
+  return (await res.json()) as AuditPage;
 }

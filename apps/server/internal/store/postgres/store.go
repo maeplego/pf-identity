@@ -353,29 +353,67 @@ func (s *Store) AppendAudit(ctx context.Context, e domain.AuditEvent) error {
 	return mapErr(err)
 }
 
-func (s *Store) ListAudits(ctx context.Context, limit int) ([]domain.AuditEvent, error) {
-	if limit <= 0 {
-		limit = 50
+func (s *Store) ListAudits(ctx context.Context, limit int, afterID string) (domain.AuditPage, error) {
+	limit = clampAuditLimit(limit)
+	var (
+		rows pgx.Rows
+		err  error
+	)
+	if afterID == "" {
+		rows, err = s.pool.Query(ctx, `
+			SELECT id, type, at, subject, client_id, ip, note
+			FROM audit_events
+			ORDER BY at DESC, id DESC
+			LIMIT $1`, limit+1)
+	} else {
+		rows, err = s.pool.Query(ctx, `
+			SELECT id, type, at, subject, client_id, ip, note
+			FROM audit_events
+			WHERE (at, id) < (SELECT at, id FROM audit_events WHERE id = $2)
+			ORDER BY at DESC, id DESC
+			LIMIT $1`, limit+1, afterID)
 	}
-	if limit > 200 {
-		limit = 200
-	}
-	rows, err := s.pool.Query(ctx, `
-		SELECT id, type, at, subject, client_id, ip, note
-		FROM audit_events ORDER BY at DESC, id DESC LIMIT $1`, limit)
 	if err != nil {
-		return nil, err
+		return domain.AuditPage{}, err
 	}
 	defer rows.Close()
-	var out []domain.AuditEvent
+	var items []domain.AuditEvent
 	for rows.Next() {
 		var e domain.AuditEvent
 		if err := rows.Scan(&e.ID, &e.Type, &e.At, &e.Subject, &e.ClientID, &e.IP, &e.Note); err != nil {
-			return nil, err
+			return domain.AuditPage{}, err
 		}
-		out = append(out, e)
+		items = append(items, e)
 	}
-	return out, rows.Err()
+	if err := rows.Err(); err != nil {
+		return domain.AuditPage{}, err
+	}
+	if afterID != "" && len(items) == 0 {
+		var dummy string
+		err := s.pool.QueryRow(ctx, `SELECT id FROM audit_events WHERE id = $1`, afterID).Scan(&dummy)
+		if err != nil {
+			return domain.AuditPage{}, mapErr(err)
+		}
+	}
+	next := ""
+	if len(items) > limit {
+		items = items[:limit]
+		next = items[len(items)-1].ID
+	}
+	if items == nil {
+		items = []domain.AuditEvent{}
+	}
+	return domain.AuditPage{Items: items, Next: next}, nil
+}
+
+func clampAuditLimit(limit int) int {
+	if limit <= 0 {
+		return 20
+	}
+	if limit > 100 {
+		return 100
+	}
+	return limit
 }
 
 func mapErr(err error) error {

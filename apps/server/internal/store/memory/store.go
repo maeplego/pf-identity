@@ -284,21 +284,55 @@ func (s *Store) AppendAudit(_ context.Context, e domain.AuditEvent) error {
 	return nil
 }
 
-func (s *Store) ListAudits(_ context.Context, limit int) ([]domain.AuditEvent, error) {
+func (s *Store) ListAudits(_ context.Context, limit int, afterID string) (domain.AuditPage, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
+	limit = clampAuditLimit(limit)
+	sorted := append([]domain.AuditEvent(nil), s.audits...)
+	sort.SliceStable(sorted, func(i, j int) bool {
+		if !sorted[i].At.Equal(sorted[j].At) {
+			return sorted[i].At.After(sorted[j].At)
+		}
+		return sorted[i].ID > sorted[j].ID
+	})
+	start := 0
+	if afterID != "" {
+		found := false
+		for i, e := range sorted {
+			if e.ID == afterID {
+				start = i + 1
+				found = true
+				break
+			}
+		}
+		if !found {
+			return domain.AuditPage{}, domain.ErrNotFound
+		}
+	}
+	if start >= len(sorted) {
+		return domain.AuditPage{Items: []domain.AuditEvent{}}, nil
+	}
+	end := start + limit
+	hasMore := end < len(sorted)
+	if end > len(sorted) {
+		end = len(sorted)
+	}
+	items := append([]domain.AuditEvent(nil), sorted[start:end]...)
+	next := ""
+	if hasMore {
+		next = items[len(items)-1].ID
+	}
+	return domain.AuditPage{Items: items, Next: next}, nil
+}
+
+func clampAuditLimit(limit int) int {
 	if limit <= 0 {
-		limit = 50
+		return 20
 	}
-	n := len(s.audits)
-	if limit > n {
-		limit = n
+	if limit > 100 {
+		return 100
 	}
-	out := make([]domain.AuditEvent, 0, limit)
-	for i := n - 1; i >= n-limit; i-- {
-		out = append(out, s.audits[i])
-	}
-	return out, nil
+	return limit
 }
 
 func sortUsers(out []domain.User) {

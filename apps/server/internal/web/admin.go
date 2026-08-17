@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/portfolio/pf-identity-server/internal/domain"
@@ -263,12 +264,25 @@ func (s *Server) handleAdminListAudits(w http.ResponseWriter, r *http.Request) {
 	if !s.requireAdmin(w, r) {
 		return
 	}
-	list, err := s.Repos.ListAudits(r.Context(), 100)
+	limit := 20
+	if raw := strings.TrimSpace(r.URL.Query().Get("limit")); raw != "" {
+		n, err := strconv.Atoi(raw)
+		if err != nil || n < 1 {
+			http.Error(w, "invalid limit", http.StatusBadRequest)
+			return
+		}
+		limit = n
+	}
+	page, err := s.Repos.ListAudits(r.Context(), limit, strings.TrimSpace(r.URL.Query().Get("after")))
 	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			http.Error(w, "unknown cursor", http.StatusBadRequest)
+			return
+		}
 		http.Error(w, "store", http.StatusInternalServerError)
 		return
 	}
-	writeJSON(w, http.StatusOK, list)
+	writeJSON(w, http.StatusOK, page)
 }
 
 func viewClient(c domain.Client) adminClientView {

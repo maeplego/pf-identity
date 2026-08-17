@@ -57,5 +57,12 @@ type Consents interface {
 // Audits persists operator-facing events. Append must not store secrets.
 type Audits interface {
 	AppendAudit(ctx context.Context, e AuditEvent) error
-	ListAudits(ctx context.Context, limit int) ([]AuditEvent, error)
+	// ListAudits returns newest-first pages. AfterID is the last id from the previous page.
+	ListAudits(ctx context.Context, limit int, afterID string) (AuditPage, error)
+}
+
+// AuditPage is one newest-first window. Next is empty when there is no older page.
+type AuditPage struct {
+	Items []AuditEvent `json:"items"`
+	Next  string       `json:"next"`
 }
