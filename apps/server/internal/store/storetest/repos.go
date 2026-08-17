@@ -152,6 +152,55 @@ func Repos(t *testing.T, s domain.Repos) {
 			t.Fatalf("access %v %+v", err, gotA)
 		}
 	})
+
+	t.Run("admin lists disable update audit", func(t *testing.T) {
+		u := domain.User{ID: id.New(), Email: id.New() + "@example.com", Name: "C", PasswordHash: "x", CreatedAt: now}
+		if err := s.Create(ctx, u); err != nil {
+			t.Fatal(err)
+		}
+		if err := s.SetUserDisabled(ctx, u.ID, true); err != nil {
+			t.Fatal(err)
+		}
+		got, err := s.GetByID(ctx, u.ID)
+		if err != nil || !got.Disabled {
+			t.Fatalf("disabled %v %+v", err, got)
+		}
+		users, err := s.ListUsers(ctx)
+		if err != nil || len(users) == 0 {
+			t.Fatalf("list users %v %d", err, len(users))
+		}
+		c := domain.Client{ID: id.New(), Name: "old", Type: domain.ClientPublic, RedirectURIs: []string{"http://127.0.0.1/a"}}
+		if err := s.CreateClient(ctx, c); err != nil {
+			t.Fatal(err)
+		}
+		if err := s.UpdateClient(ctx, c.ID, "new", []string{"http://127.0.0.1/b"}); err != nil {
+			t.Fatal(err)
+		}
+		gotC, _ := s.GetClient(ctx, c.ID)
+		if gotC.Name != "new" || gotC.RedirectURIs[0] != "http://127.0.0.1/b" {
+			t.Fatalf("%+v", gotC)
+		}
+		if err := s.SetClientSecret(ctx, c.ID, "hash"); err != nil {
+			t.Fatal(err)
+		}
+		clients, err := s.ListClients(ctx)
+		if err != nil || len(clients) == 0 {
+			t.Fatalf("list clients %v", err)
+		}
+		if err := s.AppendAudit(ctx, domain.AuditEvent{ID: id.New(), Type: domain.AuditLoginFail, At: now, Note: "a"}); err != nil {
+			t.Fatal(err)
+		}
+		if err := s.AppendAudit(ctx, domain.AuditEvent{ID: id.New(), Type: domain.AuditConsent, At: now.Add(time.Second), Note: "b"}); err != nil {
+			t.Fatal(err)
+		}
+		ev, err := s.ListAudits(ctx, 1)
+		if err != nil || len(ev) != 1 || ev[0].Note != "b" {
+			t.Fatalf("audits newest first: %v %+v", err, ev)
+		}
+		if err := s.SetUserDisabled(ctx, "missing", true); err != domain.ErrNotFound {
+			t.Fatalf("missing user: %v", err)
+		}
+	})
 }
 
 func contains(ss []string, v string) bool {

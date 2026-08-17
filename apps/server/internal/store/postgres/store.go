@@ -77,6 +77,36 @@ func (s *Store) scanUser(row pgx.Row) (domain.User, error) {
 	return u, nil
 }
 
+func (s *Store) ListUsers(ctx context.Context) ([]domain.User, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT id, email, name, password_hash, email_verified, disabled, created_at
+		FROM users ORDER BY email`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []domain.User
+	for rows.Next() {
+		var u domain.User
+		if err := rows.Scan(&u.ID, &u.Email, &u.Name, &u.PasswordHash, &u.EmailVerified, &u.Disabled, &u.CreatedAt); err != nil {
+			return nil, err
+		}
+		out = append(out, u)
+	}
+	return out, rows.Err()
+}
+
+func (s *Store) SetUserDisabled(ctx context.Context, id string, disabled bool) error {
+	tag, err := s.pool.Exec(ctx, `UPDATE users SET disabled = $2 WHERE id = $1`, id, disabled)
+	if err != nil {
+		return mapErr(err)
+	}
+	if tag.RowsAffected() == 0 {
+		return domain.ErrNotFound
+	}
+	return nil
+}
+
 func (s *Store) PutSession(ctx context.Context, sess domain.Session) error {
 	_, err := s.pool.Exec(ctx, `
 		INSERT INTO sessions (token_hash, user_id, expires_at)
@@ -124,6 +154,50 @@ func (s *Store) GetClient(ctx context.Context, id string) (domain.Client, error)
 	}
 	c.Type = domain.ClientType(typ)
 	return c, nil
+}
+
+func (s *Store) ListClients(ctx context.Context) ([]domain.Client, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT id, name, type, secret_hash, redirect_uris, token_endpoint_auth
+		FROM clients ORDER BY id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []domain.Client
+	for rows.Next() {
+		var c domain.Client
+		var typ string
+		if err := rows.Scan(&c.ID, &c.Name, &typ, &c.SecretHash, &c.RedirectURIs, &c.TokenEndpointAuth); err != nil {
+			return nil, err
+		}
+		c.Type = domain.ClientType(typ)
+		out = append(out, c)
+	}
+	return out, rows.Err()
+}
+
+func (s *Store) UpdateClient(ctx context.Context, id, name string, redirectURIs []string) error {
+	tag, err := s.pool.Exec(ctx, `
+		UPDATE clients SET name = $2, redirect_uris = $3 WHERE id = $1`, id, name, redirectURIs)
+	if err != nil {
+		return mapErr(err)
+	}
+	if tag.RowsAffected() == 0 {
+		return domain.ErrNotFound
+	}
+	return nil
+}
+
+func (s *Store) SetClientSecret(ctx context.Context, id, secretHash string) error {
+	tag, err := s.pool.Exec(ctx, `UPDATE clients SET secret_hash = $2 WHERE id = $1`, id, secretHash)
+	if err != nil {
+		return mapErr(err)
+	}
+	if tag.RowsAffected() == 0 {
+		return domain.ErrNotFound
+	}
+	return nil
 }
 
 func (s *Store) PutCode(ctx context.Context, c domain.AuthCode) error {
@@ -268,6 +342,40 @@ func (s *Store) GetConsent(ctx context.Context, userID, clientID string) (domain
 		return domain.Consent{}, mapErr(err)
 	}
 	return c, nil
+}
+
+func (s *Store) AppendAudit(ctx context.Context, e domain.AuditEvent) error {
+	_, err := s.pool.Exec(ctx, `
+		INSERT INTO audit_events (id, type, at, subject, client_id, ip, note)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+		e.ID, e.Type, e.At.UTC(), e.Subject, e.ClientID, e.IP, e.Note,
+	)
+	return mapErr(err)
+}
+
+func (s *Store) ListAudits(ctx context.Context, limit int) ([]domain.AuditEvent, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+	if limit > 200 {
+		limit = 200
+	}
+	rows, err := s.pool.Query(ctx, `
+		SELECT id, type, at, subject, client_id, ip, note
+		FROM audit_events ORDER BY at DESC, id DESC LIMIT $1`, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []domain.AuditEvent
+	for rows.Next() {
+		var e domain.AuditEvent
+		if err := rows.Scan(&e.ID, &e.Type, &e.At, &e.Subject, &e.ClientID, &e.IP, &e.Note); err != nil {
+			return nil, err
+		}
+		out = append(out, e)
+	}
+	return out, rows.Err()
 }
 
 func mapErr(err error) error {

@@ -5,6 +5,7 @@ package memory
 
 import (
 	"context"
+	"sort"
 	"strings"
 	"sync"
 
@@ -22,6 +23,7 @@ type Store struct {
 	refresh  map[string]domain.RefreshToken
 	access   map[string]domain.AccessToken
 	consent  map[string]domain.Consent
+	audits   []domain.AuditEvent
 }
 
 // NewStore returns an empty store.
@@ -35,6 +37,7 @@ func NewStore() *Store {
 		refresh:  map[string]domain.RefreshToken{},
 		access:   map[string]domain.AccessToken{},
 		consent:  map[string]domain.Consent{},
+		audits:   []domain.AuditEvent{},
 	}
 }
 
@@ -69,6 +72,29 @@ func (s *Store) GetByID(_ context.Context, id string) (domain.User, error) {
 		return domain.User{}, domain.ErrNotFound
 	}
 	return u, nil
+}
+
+func (s *Store) ListUsers(_ context.Context) ([]domain.User, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := make([]domain.User, 0, len(s.users))
+	for _, u := range s.users {
+		out = append(out, u)
+	}
+	sortUsers(out)
+	return out, nil
+}
+
+func (s *Store) SetUserDisabled(_ context.Context, id string, disabled bool) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	u, ok := s.users[id]
+	if !ok {
+		return domain.ErrNotFound
+	}
+	u.Disabled = disabled
+	s.users[id] = u
+	return nil
 }
 
 func (s *Store) PutSession(_ context.Context, sess domain.Session) error {
@@ -113,6 +139,42 @@ func (s *Store) GetClient(_ context.Context, id string) (domain.Client, error) {
 		return domain.Client{}, domain.ErrNotFound
 	}
 	return c, nil
+}
+
+func (s *Store) ListClients(_ context.Context) ([]domain.Client, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := make([]domain.Client, 0, len(s.clients))
+	for _, c := range s.clients {
+		out = append(out, c)
+	}
+	sortClients(out)
+	return out, nil
+}
+
+func (s *Store) UpdateClient(_ context.Context, id, name string, redirectURIs []string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	c, ok := s.clients[id]
+	if !ok {
+		return domain.ErrNotFound
+	}
+	c.Name = name
+	c.RedirectURIs = append([]string{}, redirectURIs...)
+	s.clients[id] = c
+	return nil
+}
+
+func (s *Store) SetClientSecret(_ context.Context, id, secretHash string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	c, ok := s.clients[id]
+	if !ok {
+		return domain.ErrNotFound
+	}
+	c.SecretHash = secretHash
+	s.clients[id] = c
+	return nil
 }
 
 func (s *Store) PutCode(_ context.Context, c domain.AuthCode) error {
@@ -213,4 +275,36 @@ func (s *Store) GetConsent(_ context.Context, userID, clientID string) (domain.C
 		return domain.Consent{}, domain.ErrNotFound
 	}
 	return c, nil
+}
+
+func (s *Store) AppendAudit(_ context.Context, e domain.AuditEvent) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.audits = append(s.audits, e)
+	return nil
+}
+
+func (s *Store) ListAudits(_ context.Context, limit int) ([]domain.AuditEvent, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if limit <= 0 {
+		limit = 50
+	}
+	n := len(s.audits)
+	if limit > n {
+		limit = n
+	}
+	out := make([]domain.AuditEvent, 0, limit)
+	for i := n - 1; i >= n-limit; i-- {
+		out = append(out, s.audits[i])
+	}
+	return out, nil
+}
+
+func sortUsers(out []domain.User) {
+	sort.Slice(out, func(i, j int) bool { return out[i].Email < out[j].Email })
+}
+
+func sortClients(out []domain.Client) {
+	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
 }

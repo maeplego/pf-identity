@@ -7,6 +7,8 @@ type Users interface {
 	Create(ctx context.Context, u User) error
 	GetByEmail(ctx context.Context, email string) (User, error)
 	GetByID(ctx context.Context, id string) (User, error)
+	ListUsers(ctx context.Context) ([]User, error)
+	SetUserDisabled(ctx context.Context, id string, disabled bool) error
 }
 
 // Sessions persists IdP browser sessions, keyed by token hash.
@@ -20,6 +22,9 @@ type Sessions interface {
 type Clients interface {
 	CreateClient(ctx context.Context, c Client) error
 	GetClient(ctx context.Context, id string) (Client, error)
+	ListClients(ctx context.Context) ([]Client, error)
+	UpdateClient(ctx context.Context, id, name string, redirectURIs []string) error
+	SetClientSecret(ctx context.Context, id, secretHash string) error
 }
 
 // AuthCodes persists hashed authorization codes.
@@ -47,4 +52,10 @@ type AccessTokens interface {
 type Consents interface {
 	PutConsent(ctx context.Context, c Consent) error
 	GetConsent(ctx context.Context, userID, clientID string) (Consent, error)
+}
+
+// Audits persists operator-facing events. Append must not store secrets.
+type Audits interface {
+	AppendAudit(ctx context.Context, e AuditEvent) error
+	ListAudits(ctx context.Context, limit int) ([]AuditEvent, error)
 }

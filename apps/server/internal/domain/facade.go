@@ -9,4 +9,5 @@ type Repos interface {
 	RefreshTokens
 	AccessTokens
 	Consents
+	Audits
 }

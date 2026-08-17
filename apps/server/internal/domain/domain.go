@@ -24,12 +24,12 @@ const (
 
 // Client is an OAuth client (relying party).
 type Client struct {
-	ID                   string
-	Name                 string
-	Type                 ClientType
-	SecretHash           string
-	RedirectURIs         []string
-	TokenEndpointAuth    string
+	ID                string
+	Name              string
+	Type              ClientType
+	SecretHash        string
+	RedirectURIs      []string
+	TokenEndpointAuth string
 }
 
 // Session is a browser login at the IdP (not an OAuth access token).
@@ -77,4 +77,23 @@ type Consent struct {
 	UserID   string
 	ClientID string
 	Scopes   []string
+}
+
+// Audit event types from DESIGN.md. Notes must never contain secrets.
+const (
+	AuditLoginFail  = "login_fail"
+	AuditConsent    = "consent"
+	AuditTokenIssue = "token_issue"
+	AuditRevoke     = "revoke"
+)
+
+// AuditEvent is an operator-facing trail. Passwords and tokens are not stored.
+type AuditEvent struct {
+	ID       string    `json:"id"`
+	Type     string    `json:"type"`
+	At       time.Time `json:"at"`
+	Subject  string    `json:"subject"`
+	ClientID string    `json:"client_id"`
+	IP       string    `json:"ip"`
+	Note     string    `json:"note"`
 }
