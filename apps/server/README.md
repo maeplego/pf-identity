@@ -25,7 +25,7 @@ go run ./cmd/server
 
 既定の issuer は `http://localhost:8080` です。Discovery は `/.well-known/openid-configuration`。
 
-永続化は `IDENTITY_STORE=postgres` と `IDENTITY_DATABASE_URL`。開発用 public クライアントは `IDENTITY_SEED_PUBLIC_CLIENT_ID` と `IDENTITY_SEED_PUBLIC_REDIRECT_URI`。
+永続化は `IDENTITY_STORE=postgres` と `IDENTITY_DATABASE_URL`。開発用 public クライアントは `IDENTITY_SEED_PUBLIC_CLIENT_ID` と `IDENTITY_SEED_PUBLIC_REDIRECT_URI`。管理 API は `IDENTITY_ADMIN_TOKEN`（未設定なら 401）。
 
 ## セキュリティ上の前提
 
