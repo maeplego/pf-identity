@@ -19,29 +19,35 @@ const StorePostgres = "postgres"
 
 // Config is the process configuration. Fields are value types so tests can copy them.
 type Config struct {
-	HTTPAddr            string
-	Issuer              string
-	DatabaseURL         string
-	CookieSecure        bool
-	DevGenerateKeys     bool
-	RSAPrivateKeyPath   string
-	Store               string
-	SessionTTL          time.Duration
-	CodeTTL             time.Duration
-	AccessTTL           time.Duration
-	RefreshTTL          time.Duration
+	HTTPAddr             string
+	Issuer               string
+	DatabaseURL          string
+	CookieSecure         bool
+	DevGenerateKeys      bool
+	RSAPrivateKeyPath    string
+	Store                string
+	SessionTTL           time.Duration
+	CodeTTL              time.Duration
+	AccessTTL            time.Duration
+	RefreshTTL           time.Duration
+	SeedPublicClientID   string
+	SeedPublicClientName string
+	SeedPublicRedirect   string
 }
 
 // FromEnv reads IDENTITY_* variables. Missing optional values use conservative locals.
 func FromEnv() (Config, error) {
 	cfg := Config{
-		HTTPAddr:        envOr("IDENTITY_HTTP_ADDR", ":8080"),
-		Issuer:          strings.TrimRight(envOr("IDENTITY_ISSUER", "http://localhost:8080"), "/"),
-		DatabaseURL:     os.Getenv("IDENTITY_DATABASE_URL"),
-		CookieSecure:    envBool("IDENTITY_COOKIE_SECURE", false),
-		DevGenerateKeys: envBool("IDENTITY_DEV_GENERATE_KEYS", false),
-		RSAPrivateKeyPath: os.Getenv("IDENTITY_RSA_PRIVATE_KEY_PATH"),
-		Store:           strings.ToLower(envOr("IDENTITY_STORE", StoreMemory)),
+		HTTPAddr:             envOr("IDENTITY_HTTP_ADDR", ":8080"),
+		Issuer:               strings.TrimRight(envOr("IDENTITY_ISSUER", "http://localhost:8080"), "/"),
+		DatabaseURL:          os.Getenv("IDENTITY_DATABASE_URL"),
+		CookieSecure:         envBool("IDENTITY_COOKIE_SECURE", false),
+		DevGenerateKeys:      envBool("IDENTITY_DEV_GENERATE_KEYS", false),
+		RSAPrivateKeyPath:    os.Getenv("IDENTITY_RSA_PRIVATE_KEY_PATH"),
+		Store:                strings.ToLower(envOr("IDENTITY_STORE", StoreMemory)),
+		SeedPublicClientID:   strings.TrimSpace(os.Getenv("IDENTITY_SEED_PUBLIC_CLIENT_ID")),
+		SeedPublicClientName: envOr("IDENTITY_SEED_PUBLIC_CLIENT_NAME", "Sample RP"),
+		SeedPublicRedirect:   strings.TrimSpace(os.Getenv("IDENTITY_SEED_PUBLIC_REDIRECT_URI")),
 	}
 
 	var err error

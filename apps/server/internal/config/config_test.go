@@ -70,3 +70,22 @@ func TestFromEnvRequiresKeySource(t *testing.T) {
 		t.Fatal("expected error when no key material is configured")
 	}
 }
+
+func TestFromEnvSeedPublicClient(t *testing.T) {
+	t.Setenv("IDENTITY_DEV_GENERATE_KEYS", "true")
+	t.Setenv("IDENTITY_STORE", "memory")
+	t.Setenv("IDENTITY_SEED_PUBLIC_CLIENT_ID", "sample-rp")
+	t.Setenv("IDENTITY_SEED_PUBLIC_REDIRECT_URI", "http://localhost:3001/callback")
+	t.Setenv("IDENTITY_SEED_PUBLIC_CLIENT_NAME", "Demo RP")
+
+	cfg, err := FromEnv()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.SeedPublicClientID != "sample-rp" || cfg.SeedPublicRedirect != "http://localhost:3001/callback" {
+		t.Fatalf("%+v", cfg)
+	}
+	if cfg.SeedPublicClientName != "Demo RP" {
+		t.Fatalf("name %q", cfg.SeedPublicClientName)
+	}
+}
