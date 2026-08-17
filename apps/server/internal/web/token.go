@@ -76,12 +76,14 @@ func (s *Server) tokenRefresh(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if existing, gerr := s.Repos.GetRefresh(r.Context(), oauth.HashToken(plain)); gerr == nil {
 			_ = s.Repos.RevokeFamily(r.Context(), existing.FamilyID)
+			s.audit(r, domain.AuditRevoke, existing.UserID, existing.ClientID, existing.FamilyID)
 		}
 		clientError(w, http.StatusBadRequest, "invalid_grant", "refresh token invalid")
 		return
 	}
 	if !row.ExpiresAt.After(s.now()) || row.ClientID != client.ID {
 		_ = s.Repos.RevokeFamily(r.Context(), row.FamilyID)
+		s.audit(r, domain.AuditRevoke, row.UserID, row.ClientID, row.FamilyID)
 		clientError(w, http.StatusBadRequest, "invalid_grant", "refresh token reuse or expiry")
 		return
 	}
@@ -145,6 +147,7 @@ func (s *Server) writeTokenResponse(w http.ResponseWriter, r *http.Request, clie
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
+	s.audit(r, domain.AuditTokenIssue, userID, client.ID, r.FormValue("grant_type"))
 	_ = json.NewEncoder(w).Encode(resp)
 }
 

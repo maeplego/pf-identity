@@ -106,6 +106,7 @@ func (s *Server) handleConsent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_ = s.Repos.PutConsent(r.Context(), domain.Consent{UserID: user.ID, ClientID: pending.ClientID, Scopes: pending.Scopes})
+	s.audit(r, domain.AuditConsent, user.ID, pending.ClientID, strings.Join(pending.Scopes, " "))
 	s.issueCodeRedirect(w, r, user.ID, pending)
 }
 

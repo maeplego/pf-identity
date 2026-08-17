@@ -1,7 +1,6 @@
 package web
 
 import (
-	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -68,6 +67,7 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		if s.Logins != nil {
 			s.Logins.Failure(limitKey)
 		}
+		s.audit(r, domain.AuditLoginFail, "", "", strings.ToLower(strings.TrimSpace(email)))
 		s.failForm(w, r, "login", "ログイン", "メールまたはパスワードが違います。", http.StatusBadRequest)
 		return
 	}
@@ -149,9 +149,5 @@ func safeContinue(raw string) string {
 }
 
 func loginKey(r *http.Request, email string) string {
-	ip := r.RemoteAddr
-	if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
-		ip = host
-	}
-	return ip + "\n" + strings.ToLower(strings.TrimSpace(email))
+	return requestIP(r) + "\n" + strings.ToLower(strings.TrimSpace(email))
 }

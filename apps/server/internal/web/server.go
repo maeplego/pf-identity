@@ -33,13 +33,13 @@ type pageData struct {
 }
 
 type pendingAuth struct {
-	ClientID      string
-	RedirectURI   string
-	State         string
-	Nonce         string
-	Scopes        []string
-	Challenge     string
-	ExpiresAt     time.Time
+	ClientID    string
+	RedirectURI string
+	State       string
+	Nonce       string
+	Scopes      []string
+	Challenge   string
+	ExpiresAt   time.Time
 }
 
 // Server is the HTTP surface of the authorization server.
@@ -94,6 +94,14 @@ func NewServer(cfg config.Config, acc *account.Service, sess *session.Service, r
 	s.mux.HandleFunc("GET /.well-known/openid-configuration", s.handleDiscovery)
 	s.mux.HandleFunc("GET /jwks.json", s.handleJWKS)
 	s.mux.HandleFunc("GET /.well-known/jwks.json", s.handleJWKS)
+	s.mux.HandleFunc("GET /admin/api/clients", s.handleAdminListClients)
+	s.mux.HandleFunc("POST /admin/api/clients", s.handleAdminCreateClient)
+	s.mux.HandleFunc("GET /admin/api/clients/{id}", s.handleAdminGetClient)
+	s.mux.HandleFunc("PATCH /admin/api/clients/{id}", s.handleAdminUpdateClient)
+	s.mux.HandleFunc("POST /admin/api/clients/{id}/rotate-secret", s.handleAdminRotateSecret)
+	s.mux.HandleFunc("GET /admin/api/users", s.handleAdminListUsers)
+	s.mux.HandleFunc("POST /admin/api/users/{id}/disabled", s.handleAdminSetDisabled)
+	s.mux.HandleFunc("GET /admin/api/audits", s.handleAdminListAudits)
 	return s, nil
 }
 

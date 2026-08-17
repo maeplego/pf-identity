@@ -89,3 +89,17 @@ func TestFromEnvSeedPublicClient(t *testing.T) {
 		t.Fatalf("name %q", cfg.SeedPublicClientName)
 	}
 }
+
+func TestFromEnvAdminToken(t *testing.T) {
+	t.Setenv("IDENTITY_DEV_GENERATE_KEYS", "true")
+	t.Setenv("IDENTITY_STORE", "memory")
+	t.Setenv("IDENTITY_ADMIN_TOKEN", "dev-admin-token")
+
+	cfg, err := FromEnv()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.AdminToken != "dev-admin-token" {
+		t.Fatalf("admin token %q", cfg.AdminToken)
+	}
+}

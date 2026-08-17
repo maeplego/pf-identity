@@ -33,6 +33,7 @@ type Config struct {
 	SeedPublicClientID   string
 	SeedPublicClientName string
 	SeedPublicRedirect   string
+	AdminToken           string
 }
 
 // FromEnv reads IDENTITY_* variables. Missing optional values use conservative locals.
@@ -48,6 +49,7 @@ func FromEnv() (Config, error) {
 		SeedPublicClientID:   strings.TrimSpace(os.Getenv("IDENTITY_SEED_PUBLIC_CLIENT_ID")),
 		SeedPublicClientName: envOr("IDENTITY_SEED_PUBLIC_CLIENT_NAME", "Sample RP"),
 		SeedPublicRedirect:   strings.TrimSpace(os.Getenv("IDENTITY_SEED_PUBLIC_REDIRECT_URI")),
+		AdminToken:           strings.TrimSpace(os.Getenv("IDENTITY_ADMIN_TOKEN")),
 	}
 
 	var err error
