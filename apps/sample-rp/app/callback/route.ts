@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { clearCookie, readCookie, setHttpOnly } from "../../lib/cookies";
-import { clientId, issuer, redirectUri } from "../../lib/env";
+import { clientId, internalBase, redirectUri } from "../../lib/env";
 import { verifyIdToken } from "../../lib/idtoken";
 
 export async function GET(req: NextRequest) {
@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
     redirect_uri: redirectUri(),
     code_verifier: verifier,
   });
-  const tokenRes = await fetch(`${issuer()}/token`, {
+  const tokenRes = await fetch(`${internalBase()}/token`, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body,

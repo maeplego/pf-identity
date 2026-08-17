@@ -15,5 +15,48 @@ services:
       timeout: 5s
       retries: 10
 
+  idp:
+    build:
+      context: ../apps/server
+    environment:
+      IDENTITY_HTTP_ADDR: :8080
+      IDENTITY_ISSUER: http://localhost:8080
+      IDENTITY_COOKIE_SECURE: "false"
+      IDENTITY_DEV_GENERATE_KEYS: "true"
+      IDENTITY_STORE: postgres
+      IDENTITY_DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?sslmode=disable
+      IDENTITY_ADMIN_TOKEN: ${IDENTITY_ADMIN_TOKEN}
+      IDENTITY_SEED_PUBLIC_CLIENT_ID: sample-rp
+      IDENTITY_SEED_PUBLIC_REDIRECT_URI: http://localhost:3001/callback
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  admin:
+    build:
+      context: ../apps/admin
+    environment:
+      IDENTITY_API_BASE: http://idp:8080
+      IDENTITY_ADMIN_TOKEN: ${IDENTITY_ADMIN_TOKEN}
+    ports:
+      - "3002:3002"
+    depends_on:
+      - idp
+
+  sample-rp:
+    build:
+      context: ../apps/sample-rp
+    environment:
+      OIDC_ISSUER: http://localhost:8080
+      OIDC_INTERNAL_BASE: http://idp:8080
+      OIDC_CLIENT_ID: sample-rp
+      OIDC_REDIRECT_URI: http://localhost:3001/callback
+    ports:
+      - "3001:3001"
+    depends_on:
+      - idp
+
 volumes:
   idp-pgdata:

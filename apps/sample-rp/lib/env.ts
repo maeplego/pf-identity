@@ -6,6 +6,12 @@ export function issuer(): string {
   return v;
 }
 
+// Browser redirects use issuer(); server-side fetch uses this so Compose can reach the IdP by service name.
+export function internalBase(): string {
+  const v = process.env.OIDC_INTERNAL_BASE?.replace(/\/$/, "");
+  return v || issuer();
+}
+
 export function clientId(): string {
   const v = process.env.OIDC_CLIENT_ID;
   if (!v) {

@@ -1,5 +1,5 @@
 import { readCookie } from "../lib/cookies";
-import { issuer } from "../lib/env";
+import { internalBase } from "../lib/env";
 
 export default async function Home({
   searchParams,
@@ -11,7 +11,7 @@ export default async function Home({
   let userinfo: Record<string, unknown> | null = null;
   let userinfoError = "";
   if (access) {
-    const res = await fetch(`${issuer()}/userinfo`, {
+    const res = await fetch(`${internalBase()}/userinfo`, {
       headers: { Authorization: `Bearer ${access}` },
       cache: "no-store",
     });
