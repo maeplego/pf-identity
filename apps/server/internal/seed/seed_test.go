@@ -80,3 +80,27 @@ func TestPublicClientRequiresRedirect(t *testing.T) {
 		t.Fatal("expected error")
 	}
 }
+
+func TestDemoRPBInsertsSecondClient(t *testing.T) {
+	store := memory.NewStore()
+	cfg := config.Config{
+		SeedDemoRPBRedirect: "http://localhost:3003/callback",
+	}
+	if err := DemoRPB(context.Background(), store, cfg); err != nil {
+		t.Fatal(err)
+	}
+	c, err := store.GetClient(context.Background(), "sample-rp-b")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.RedirectURIs[0] != cfg.SeedDemoRPBRedirect || c.BackChannelLogoutURI != "http://localhost:3003/backchannel-logout" {
+		t.Fatalf("%+v", c)
+	}
+}
+
+func TestDemoRPBSkippedWhenUnset(t *testing.T) {
+	store := memory.NewStore()
+	if err := DemoRPB(context.Background(), store, config.Config{}); err != nil {
+		t.Fatal(err)
+	}
+}

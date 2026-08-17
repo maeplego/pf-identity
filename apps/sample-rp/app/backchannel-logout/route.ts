@@ -7,8 +7,20 @@ import { consumeJti, revokeSid } from "../../lib/sids";
 const logoutEvent = "http://schemas.openid.net/event/backchannel-logout";
 
 export async function POST(req: NextRequest) {
-  const form = await req.formData();
-  const logoutToken = String(form.get("logout_token") ?? "");
+  const contentType = req.headers.get("content-type") ?? "";
+  if (
+    !contentType.includes("application/x-www-form-urlencoded") &&
+    !contentType.includes("multipart/form-data")
+  ) {
+    return new NextResponse("missing logout_token", { status: 400 });
+  }
+  let logoutToken = "";
+  try {
+    const form = await req.formData();
+    logoutToken = String(form.get("logout_token") ?? "");
+  } catch {
+    return new NextResponse("missing logout_token", { status: 400 });
+  }
   if (!logoutToken) {
     return new NextResponse("missing logout_token", { status: 400 });
   }

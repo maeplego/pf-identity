@@ -34,6 +34,10 @@ type Config struct {
 	SeedPublicClientName   string
 	SeedPublicRedirect     string
 	SeedPublicPostLogout   string
+	SeedDemoRPBClientID    string
+	SeedDemoRPBClientName  string
+	SeedDemoRPBRedirect    string
+	SeedDemoRPBPostLogout  string
 	AdminToken             string
 }
 
@@ -51,6 +55,10 @@ func FromEnv() (Config, error) {
 		SeedPublicClientName: envOr("IDENTITY_SEED_PUBLIC_CLIENT_NAME", "Sample RP"),
 		SeedPublicRedirect:   strings.TrimSpace(os.Getenv("IDENTITY_SEED_PUBLIC_REDIRECT_URI")),
 		SeedPublicPostLogout: strings.TrimSpace(os.Getenv("IDENTITY_SEED_PUBLIC_POST_LOGOUT_REDIRECT_URI")),
+		SeedDemoRPBClientID:  strings.TrimSpace(os.Getenv("IDENTITY_SEED_DEMO_RP_B_CLIENT_ID")),
+		SeedDemoRPBClientName: envOr("IDENTITY_SEED_DEMO_RP_B_CLIENT_NAME", "Sample RP B"),
+		SeedDemoRPBRedirect:  strings.TrimSpace(os.Getenv("IDENTITY_SEED_DEMO_RP_B_REDIRECT_URI")),
+		SeedDemoRPBPostLogout: strings.TrimSpace(os.Getenv("IDENTITY_SEED_DEMO_RP_B_POST_LOGOUT_REDIRECT_URI")),
 		AdminToken:           strings.TrimSpace(os.Getenv("IDENTITY_ADMIN_TOKEN")),
 	}
 

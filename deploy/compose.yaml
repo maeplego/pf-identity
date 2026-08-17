@@ -28,6 +28,7 @@ services:
       IDENTITY_ADMIN_TOKEN: ${IDENTITY_ADMIN_TOKEN}
       IDENTITY_SEED_PUBLIC_CLIENT_ID: sample-rp
       IDENTITY_SEED_PUBLIC_REDIRECT_URI: http://localhost:3001/callback
+      IDENTITY_SEED_DEMO_RP_B_REDIRECT_URI: http://localhost:3003/callback
     ports:
       - "8080:8080"
     depends_on:
@@ -52,9 +53,25 @@ services:
       OIDC_ISSUER: http://localhost:8080
       OIDC_INTERNAL_BASE: http://idp:8080
       OIDC_CLIENT_ID: sample-rp
+      OIDC_RP_LABEL: sample-rp
       OIDC_REDIRECT_URI: http://localhost:3001/callback
     ports:
       - "3001:3001"
+    depends_on:
+      - idp
+
+  sample-rp-b:
+    build:
+      context: ../apps/sample-rp
+    environment:
+      OIDC_ISSUER: http://localhost:8080
+      OIDC_INTERNAL_BASE: http://idp:8080
+      OIDC_CLIENT_ID: sample-rp-b
+      OIDC_RP_LABEL: sample-rp-b
+      OIDC_REDIRECT_URI: http://localhost:3003/callback
+    ports:
+      - "3003:3003"
+    command: ["npm", "run", "start", "--", "-p", "3003", "--hostname", "0.0.0.0"]
     depends_on:
       - idp
 

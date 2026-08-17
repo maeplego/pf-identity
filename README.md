@@ -39,6 +39,7 @@ docker compose -f deploy/compose.yaml --env-file deploy/.env up --build
 
 - IdP: http://localhost:8080
 - sample-rp: http://localhost:3001
+- sample-rp-b: http://localhost:3003（同じ IdP セッションでログインし、片方から logout するともう片方も落ちる）
 - admin: http://localhost:3002
 
 Postgres ストアのテストは `IDENTITY_TEST_DATABASE_URL` か Docker が必要です。どちらも無いときはそのパッケージだけ Skip します。

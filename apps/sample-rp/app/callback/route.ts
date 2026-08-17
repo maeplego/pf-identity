@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { clearOn, setOn } from "../../lib/cookies";
+import { clearOn, readRequestCookie, setOn } from "../../lib/cookies";
 import { clientId, internalBase, redirectUri } from "../../lib/env";
 import { verifyIdToken } from "../../lib/idtoken";
 import { rememberSid } from "../../lib/sids";
@@ -13,9 +13,9 @@ export async function GET(req: NextRequest) {
   }
   const code = url.searchParams.get("code") ?? "";
   const state = url.searchParams.get("state") ?? "";
-  const expected = req.cookies.get("rp_state")?.value;
-  const nonce = req.cookies.get("rp_nonce")?.value;
-  const verifier = req.cookies.get("rp_verifier")?.value;
+  const expected = readRequestCookie(req, "rp_state");
+  const nonce = readRequestCookie(req, "rp_nonce");
+  const verifier = readRequestCookie(req, "rp_verifier");
   if (!code || !state || !expected || state !== expected || !nonce || !verifier) {
     return NextResponse.redirect(new URL("/?error=state", url.origin));
   }

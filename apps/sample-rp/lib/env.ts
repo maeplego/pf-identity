@@ -35,3 +35,11 @@ export function postLogoutRedirectUri(): string {
   }
   return redirectUri().replace(/\/callback$/, "/logged-out");
 }
+
+export function rpLabel(): string {
+  const v = process.env.OIDC_RP_LABEL?.trim();
+  if (v) {
+    return v;
+  }
+  return clientId();
+}

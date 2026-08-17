@@ -12,4 +12,7 @@ $env:GOTOOLCHAIN = "local"
 npm test
 ```
 
-IdP / sample-rp / admin はテストが専用ポート（18080 / 13001 / 13002）で起動します。
+IdP / sample-rp / sample-rp-b / admin はテストが専用ポート（18080 / 13001 / 13003 / 13002）で起動します。
+
+- `backchannel-logout.spec.ts` — `/backchannel-logout` が不正な `logout_token` を拒否する
+- `cross-rp-logout.spec.ts` — 2 つの RP でログイン後、片方から logout するともう片方のセッションも終わる

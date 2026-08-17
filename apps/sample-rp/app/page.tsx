@@ -1,5 +1,5 @@
 import { readCookie } from "../lib/cookies";
-import { internalBase } from "../lib/env";
+import { internalBase, rpLabel } from "../lib/env";
 import { isRevoked } from "../lib/sids";
 
 export default async function Home({
@@ -26,7 +26,7 @@ export default async function Home({
 
   return (
     <main style={{ fontFamily: "sans-serif", maxWidth: 640, margin: "2rem auto" }}>
-      <h1>sample-rp</h1>
+      <h1 data-testid="rp-title">{rpLabel()}</h1>
       <p>学習用 RP です。authorization code + PKCE をサーバー側で交換します。</p>
       {q.error ? (
         <p role="alert" data-testid="auth-error">

@@ -30,3 +30,5 @@ npm run dev
 ```
 
 ブラウザで http://localhost:3001 を開き、ログインする。
+
+2 つ目の RP デモ（Compose）: http://localhost:3003 。同じアカウントで両方ログインし、片方から logout すると Front-Channel / Back-Channel でもう片方も落ちる。

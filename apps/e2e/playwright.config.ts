@@ -3,10 +3,12 @@ import path from "node:path";
 
 const idpPort = 18080;
 const rpPort = 13001;
+const rpBPort = 13003;
 const adminPort = 13002;
 const apps = path.join(__dirname, "..");
 const idp = `http://localhost:${idpPort}`;
 const rp = `http://localhost:${rpPort}`;
+const rpB = `http://localhost:${rpBPort}`;
 const admin = `http://localhost:${adminPort}`;
 
 export default defineConfig({
@@ -53,6 +55,21 @@ export default defineConfig({
         OIDC_CLIENT_ID: "sample-rp",
         OIDC_REDIRECT_URI: `${rp}/callback`,
         OIDC_POST_LOGOUT_REDIRECT_URI: `${rp}/logged-out`,
+      },
+    },
+    {
+      command: "npx next dev -p 13003 --hostname localhost",
+      cwd: path.join(apps, "sample-rp"),
+      url: rpB,
+      reuseExistingServer: false,
+      timeout: 120_000,
+      env: {
+        ...process.env,
+        OIDC_ISSUER: idp,
+        OIDC_CLIENT_ID: "sample-rp-b",
+        OIDC_RP_LABEL: "sample-rp-b",
+        OIDC_REDIRECT_URI: `${rpB}/callback`,
+        OIDC_POST_LOGOUT_REDIRECT_URI: `${rpB}/logged-out`,
       },
     },
     {
