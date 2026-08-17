@@ -1,0 +1,24 @@
+# Binaries and modules
+/bin/
+/dist/
+*.exe
+*.test
+*.out
+coverage.out
+coverage.html
+vendor/
+
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+dev-keys/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
