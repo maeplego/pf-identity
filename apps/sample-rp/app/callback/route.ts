@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { clearCookie, readCookie, setHttpOnly } from "../../lib/cookies";
+import { clearOn, setOn } from "../../lib/cookies";
 import { clientId, internalBase, redirectUri } from "../../lib/env";
 import { verifyIdToken } from "../../lib/idtoken";
 
@@ -12,9 +12,9 @@ export async function GET(req: NextRequest) {
   }
   const code = url.searchParams.get("code") ?? "";
   const state = url.searchParams.get("state") ?? "";
-  const expected = await readCookie("rp_state");
-  const nonce = await readCookie("rp_nonce");
-  const verifier = await readCookie("rp_verifier");
+  const expected = req.cookies.get("rp_state")?.value;
+  const nonce = req.cookies.get("rp_nonce")?.value;
+  const verifier = req.cookies.get("rp_verifier")?.value;
   if (!code || !state || !expected || state !== expected || !nonce || !verifier) {
     return NextResponse.redirect(new URL("/?error=state", url.origin));
   }
@@ -49,13 +49,14 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(new URL("/?error=id_token", url.origin));
   }
 
-  await setHttpOnly("rp_access", tokens.access_token);
-  await setHttpOnly("rp_id", tokens.id_token);
+  const res = NextResponse.redirect(new URL("/", url.origin));
+  setOn(res, "rp_access", tokens.access_token);
+  setOn(res, "rp_id", tokens.id_token);
   if (tokens.refresh_token) {
-    await setHttpOnly("rp_refresh", tokens.refresh_token);
+    setOn(res, "rp_refresh", tokens.refresh_token);
   }
-  await clearCookie("rp_state");
-  await clearCookie("rp_nonce");
-  await clearCookie("rp_verifier");
-  return NextResponse.redirect(new URL("/", url.origin));
+  clearOn(res, "rp_state");
+  clearOn(res, "rp_nonce");
+  clearOn(res, "rp_verifier");
+  return res;
 }

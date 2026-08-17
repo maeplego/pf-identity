@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { clearCookie } from "../../lib/cookies";
+import { clearOn } from "../../lib/cookies";
 
 export async function POST(req: NextRequest) {
-  await clearCookie("rp_access");
-  await clearCookie("rp_id");
-  await clearCookie("rp_refresh");
-  return NextResponse.redirect(new URL("/", req.url), { status: 303 });
+  const res = NextResponse.redirect(new URL("/", req.url), { status: 303 });
+  clearOn(res, "rp_access");
+  clearOn(res, "rp_id");
+  clearOn(res, "rp_refresh");
+  return res;
 }

@@ -26,20 +26,26 @@ export default async function Home({
     <main style={{ fontFamily: "sans-serif", maxWidth: 640, margin: "2rem auto" }}>
       <h1>sample-rp</h1>
       <p>学習用 RP です。authorization code + PKCE をサーバー側で交換します。</p>
-      {q.error ? <p role="alert">エラー: {q.error}</p> : null}
+      {q.error ? (
+        <p role="alert" data-testid="auth-error">
+          エラー: {q.error}
+        </p>
+      ) : null}
       {userinfo ? (
         <>
           <h2>UserInfo</h2>
-          <pre>{JSON.stringify(userinfo, null, 2)}</pre>
+          <pre data-testid="userinfo">{JSON.stringify(userinfo, null, 2)}</pre>
           <form action="/logout" method="post">
-            <button type="submit">ログアウト</button>
+            <button type="submit" data-testid="logout">ログアウト</button>
           </form>
         </>
       ) : (
         <>
           {userinfoError ? <p>{userinfoError}</p> : null}
           <p>
-            <a href="/login">IdP でログイン</a>
+            <a href="/login" data-testid="login-link">
+              IdP でログイン
+            </a>
           </p>
         </>
       )}
