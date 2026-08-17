@@ -1,0 +1,14 @@
+{{define "content"}}
+<h1>権限の許可</h1>
+<p><strong>{{.ClientName}}</strong> が次の権限を要求しています。</p>
+<ul>
+{{range .Scopes}}<li><code>{{.}}</code></li>{{end}}
+</ul>
+{{if .Error}}<p class="error">{{.Error}}</p>{{end}}
+<form method="post" action="/consent">
+<input type="hidden" name="csrf" value="{{.CSRF}}">
+<input type="hidden" name="request_id" value="{{.RequestID}}">
+<button type="submit" name="decision" value="allow">許可</button>
+<button type="submit" name="decision" value="deny">拒否</button>
+</form>
+{{end}}

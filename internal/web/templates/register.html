@@ -1,0 +1,16 @@
+{{define "content"}}
+<h1>アカウント登録</h1>
+{{if .Error}}<p class="error">{{.Error}}</p>{{end}}
+<form method="post" action="/register">
+<input type="hidden" name="csrf" value="{{.CSRF}}">
+<input type="hidden" name="continue" value="{{.Continue}}">
+<label>メール</label>
+<input type="email" name="email" required autocomplete="username">
+<label>表示名</label>
+<input type="text" name="name" required>
+<label>パスワード</label>
+<input type="password" name="password" required minlength="8" autocomplete="new-password">
+<p><button type="submit">登録</button></p>
+</form>
+<p><a href="/login">ログインへ</a></p>
+{{end}}

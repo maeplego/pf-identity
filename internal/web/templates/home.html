@@ -1,0 +1,8 @@
+{{define "content"}}
+<h1>ログイン済み</h1>
+<p>{{.Name}} （{{.Email}}）</p>
+<form method="post" action="/logout">
+<input type="hidden" name="csrf" value="{{.CSRF}}">
+<button type="submit">ログアウト</button>
+</form>
+{{end}}
