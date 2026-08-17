@@ -56,6 +56,13 @@ export default async function NewClientPage({
             <input name="frontchannel_logout_uri" placeholder="http://localhost:3000/frontchannel-logout" />
           </label>
         </p>
+        <p>
+          <label>
+            backchannel_logout_uri（任意。IdP から logout_token を POST する先）
+            <br />
+            <input name="backchannel_logout_uri" placeholder="http://localhost:3000/backchannel-logout" />
+          </label>
+        </p>
         <button type="submit">作成</button>
       </form>
     </main>

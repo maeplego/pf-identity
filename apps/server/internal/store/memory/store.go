@@ -193,6 +193,7 @@ func (s *Store) UpdateClient(_ context.Context, id string, patch domain.ClientPa
 	c.RedirectURIs = append([]string{}, patch.RedirectURIs...)
 	c.PostLogoutRedirectURIs = append([]string{}, patch.PostLogoutRedirectURIs...)
 	c.FrontChannelLogoutURI = patch.FrontChannelLogoutURI
+	c.BackChannelLogoutURI = patch.BackChannelLogoutURI
 	s.clients[id] = c
 	return nil
 }

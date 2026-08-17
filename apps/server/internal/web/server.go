@@ -56,7 +56,8 @@ type Server struct {
 	Repos    domain.Repos
 	Signer   *oidc.Signer
 	Clock    clock.Clock
-	Logins   *ratelimit.Limiter
+	Logins     *ratelimit.Limiter
+	LogoutHTTP *http.Client
 
 	mux *http.ServeMux
 	tpl map[string]*template.Template
@@ -74,7 +75,8 @@ func NewServer(cfg config.Config, acc *account.Service, sess *session.Service, r
 		Repos:    repos,
 		Signer:   signer,
 		Clock:    clk,
-		Logins:   ratelimit.New(5, time.Minute, clk),
+		Logins:     ratelimit.New(5, time.Minute, clk),
+		LogoutHTTP: &http.Client{Timeout: 3 * time.Second},
 		pending:  map[string]pendingAuth{},
 		tpl:      map[string]*template.Template{},
 		mux:      http.NewServeMux(),

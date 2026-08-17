@@ -26,6 +26,7 @@ type adminClientView struct {
 	RedirectURIs           []string `json:"redirect_uris"`
 	PostLogoutRedirectURIs []string `json:"post_logout_redirect_uris"`
 	FrontChannelLogoutURI  string   `json:"frontchannel_logout_uri"`
+	BackChannelLogoutURI   string   `json:"backchannel_logout_uri"`
 	TokenEndpointAuth      string   `json:"token_endpoint_auth"`
 	HasSecret              bool     `json:"has_secret"`
 }
@@ -79,6 +80,7 @@ func (s *Server) handleAdminCreateClient(w http.ResponseWriter, r *http.Request)
 		RedirectURIs           []string `json:"redirect_uris"`
 		PostLogoutRedirectURIs []string `json:"post_logout_redirect_uris"`
 		FrontChannelLogoutURI  string   `json:"frontchannel_logout_uri"`
+		BackChannelLogoutURI   string   `json:"backchannel_logout_uri"`
 	}
 	if err := decodeJSON(r, &in); err != nil {
 		http.Error(w, "invalid json", http.StatusBadRequest)
@@ -112,7 +114,12 @@ func (s *Server) handleAdminCreateClient(w http.ResponseWriter, r *http.Request)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	c := domain.Client{ID: cid, Name: name, RedirectURIs: uris, PostLogoutRedirectURIs: posts, FrontChannelLogoutURI: fc}
+	bc, err := normalizeOptionalURI(in.BackChannelLogoutURI, "backchannel_logout_uri")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	c := domain.Client{ID: cid, Name: name, RedirectURIs: uris, PostLogoutRedirectURIs: posts, FrontChannelLogoutURI: fc, BackChannelLogoutURI: bc}
 	plainSecret := ""
 	switch domain.ClientType(in.Type) {
 	case domain.ClientConfidential:
@@ -172,6 +179,7 @@ func (s *Server) handleAdminUpdateClient(w http.ResponseWriter, r *http.Request)
 		RedirectURIs           []string `json:"redirect_uris"`
 		PostLogoutRedirectURIs []string `json:"post_logout_redirect_uris"`
 		FrontChannelLogoutURI  string   `json:"frontchannel_logout_uri"`
+		BackChannelLogoutURI   string   `json:"backchannel_logout_uri"`
 	}
 	if err := decodeJSON(r, &in); err != nil {
 		http.Error(w, "invalid json", http.StatusBadRequest)
@@ -197,11 +205,17 @@ func (s *Server) handleAdminUpdateClient(w http.ResponseWriter, r *http.Request)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	bc, err := normalizeOptionalURI(in.BackChannelLogoutURI, "backchannel_logout_uri")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 	if err := s.Repos.UpdateClient(r.Context(), r.PathValue("id"), domain.ClientPatch{
 		Name:                   name,
 		RedirectURIs:           uris,
 		PostLogoutRedirectURIs: posts,
 		FrontChannelLogoutURI:  fc,
+		BackChannelLogoutURI:   bc,
 	}); err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
 			http.Error(w, "not found", http.StatusNotFound)
@@ -332,6 +346,7 @@ func viewClient(c domain.Client) adminClientView {
 		RedirectURIs:           uris,
 		PostLogoutRedirectURIs: posts,
 		FrontChannelLogoutURI:  c.FrontChannelLogoutURI,
+		BackChannelLogoutURI:   c.BackChannelLogoutURI,
 		TokenEndpointAuth:      c.TokenEndpointAuth,
 		HasSecret:              c.SecretHash != "",
 	}

@@ -120,6 +120,49 @@ func (s *Signer) SignIDToken(in IDTokenInput) (string, error) {
 	return string(raw), nil
 }
 
+// LogoutTokenEvent is the Back-Channel Logout event type in the events claim.
+const LogoutTokenEvent = "http://schemas.openid.net/event/backchannel-logout"
+
+// LogoutTokenInput is the claims for a back-channel logout_token. nonce must never be set.
+type LogoutTokenInput struct {
+	Issuer   string
+	Subject  string
+	Audience string
+	SID      string
+	JTI      string
+	Now      time.Time
+	TTL      time.Duration
+}
+
+// SignLogoutToken builds a compact RS256 JWT for Back-Channel Logout.
+func (s *Signer) SignLogoutToken(in LogoutTokenInput) (string, error) {
+	if in.Subject == "" && in.SID == "" {
+		return "", fmt.Errorf("logout_token needs sub or sid")
+	}
+	b := jwt.NewBuilder().
+		Issuer(in.Issuer).
+		Audience([]string{in.Audience}).
+		IssuedAt(in.Now).
+		Expiration(in.Now.Add(in.TTL)).
+		JwtID(in.JTI).
+		Claim("events", map[string]any{LogoutTokenEvent: map[string]any{}})
+	if in.Subject != "" {
+		b = b.Subject(in.Subject)
+	}
+	if in.SID != "" {
+		b = b.Claim("sid", in.SID)
+	}
+	tok, err := b.Build()
+	if err != nil {
+		return "", err
+	}
+	raw, err := jwt.Sign(tok, jwt.WithKey(jwa.RS256, s.key))
+	if err != nil {
+		return "", err
+	}
+	return string(raw), nil
+}
+
 // IDTokenHint is the subset of an ID Token used by RP-Initiated Logout.
 // The spec allows expired hints, so expiry is not checked.
 type IDTokenHint struct {

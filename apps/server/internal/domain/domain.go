@@ -31,6 +31,7 @@ type Client struct {
 	RedirectURIs           []string
 	PostLogoutRedirectURIs []string
 	FrontChannelLogoutURI  string
+	BackChannelLogoutURI   string
 	TokenEndpointAuth      string
 }
 
@@ -40,6 +41,7 @@ type ClientPatch struct {
 	RedirectURIs           []string
 	PostLogoutRedirectURIs []string
 	FrontChannelLogoutURI  string
+	BackChannelLogoutURI   string
 }
 
 // Session is a browser login at the IdP (not an OAuth access token).

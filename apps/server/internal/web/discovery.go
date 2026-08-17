@@ -23,6 +23,8 @@ func (s *Server) handleDiscovery(w http.ResponseWriter, _ *http.Request) {
 		"end_session_endpoint":                  iss + "/end-session",
 		"frontchannel_logout_supported":         true,
 		"frontchannel_logout_session_supported": true,
+		"backchannel_logout_supported":          true,
+		"backchannel_logout_session_supported":  true,
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(doc)

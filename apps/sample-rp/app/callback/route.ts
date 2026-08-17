@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { clearOn, setOn } from "../../lib/cookies";
 import { clientId, internalBase, redirectUri } from "../../lib/env";
 import { verifyIdToken } from "../../lib/idtoken";
+import { rememberSid } from "../../lib/sids";
 
 export async function GET(req: NextRequest) {
   const url = req.nextUrl;
@@ -46,6 +47,9 @@ export async function GET(req: NextRequest) {
   try {
     const payload = await verifyIdToken(tokens.id_token, nonce);
     const sid = typeof payload.sid === "string" ? payload.sid : "";
+    if (sid) {
+      rememberSid(sid);
+    }
     const res = NextResponse.redirect(new URL("/", url.origin));
     setOn(res, "rp_access", tokens.access_token);
     setOn(res, "rp_id", tokens.id_token);

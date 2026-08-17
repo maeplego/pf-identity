@@ -32,6 +32,10 @@ func PublicClient(ctx context.Context, clients domain.Clients, cfg config.Config
 	if err != nil {
 		return err
 	}
+	back, err := replaceCallbackPath(cfg.SeedPublicRedirect, "/backchannel-logout")
+	if err != nil {
+		return err
+	}
 	want := domain.Client{
 		ID:                     cfg.SeedPublicClientID,
 		Name:                   cfg.SeedPublicClientName,
@@ -39,12 +43,13 @@ func PublicClient(ctx context.Context, clients domain.Clients, cfg config.Config
 		RedirectURIs:           []string{cfg.SeedPublicRedirect},
 		PostLogoutRedirectURIs: []string{postLogout},
 		FrontChannelLogoutURI:  front,
+		BackChannelLogoutURI:   back,
 	}
 	existing, err := clients.GetClient(ctx, cfg.SeedPublicClientID)
 	if err == nil {
 		redirects := unionExact(existing.RedirectURIs, want.RedirectURIs)
 		posts := unionExact(existing.PostLogoutRedirectURIs, want.PostLogoutRedirectURIs)
-		if existing.Name == want.Name && sameStrings(existing.RedirectURIs, redirects) && sameStrings(existing.PostLogoutRedirectURIs, posts) && existing.FrontChannelLogoutURI == want.FrontChannelLogoutURI {
+		if existing.Name == want.Name && sameStrings(existing.RedirectURIs, redirects) && sameStrings(existing.PostLogoutRedirectURIs, posts) && existing.FrontChannelLogoutURI == want.FrontChannelLogoutURI && existing.BackChannelLogoutURI == want.BackChannelLogoutURI {
 			return nil
 		}
 		if err := clients.UpdateClient(ctx, existing.ID, domain.ClientPatch{
@@ -52,10 +57,11 @@ func PublicClient(ctx context.Context, clients domain.Clients, cfg config.Config
 			RedirectURIs:           redirects,
 			PostLogoutRedirectURIs: posts,
 			FrontChannelLogoutURI:  want.FrontChannelLogoutURI,
+			BackChannelLogoutURI:   want.BackChannelLogoutURI,
 		}); err != nil {
 			return err
 		}
-		log.Printf("updated seeded public client id=%s redirect=%s post_logout=%s frontchannel=%s", want.ID, cfg.SeedPublicRedirect, postLogout, front)
+		log.Printf("updated seeded public client id=%s redirect=%s post_logout=%s frontchannel=%s backchannel=%s", want.ID, cfg.SeedPublicRedirect, postLogout, front, back)
 		return nil
 	}
 	if !errors.Is(err, domain.ErrNotFound) {
@@ -64,7 +70,7 @@ func PublicClient(ctx context.Context, clients domain.Clients, cfg config.Config
 	if err := clients.CreateClient(ctx, want); err != nil {
 		return err
 	}
-	log.Printf("seeded public client id=%s redirect=%s post_logout=%s frontchannel=%s", want.ID, cfg.SeedPublicRedirect, postLogout, front)
+	log.Printf("seeded public client id=%s redirect=%s post_logout=%s frontchannel=%s backchannel=%s", want.ID, cfg.SeedPublicRedirect, postLogout, front, back)
 	return nil
 }
 

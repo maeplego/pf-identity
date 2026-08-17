@@ -173,9 +173,9 @@ func (s *Store) CreateClient(ctx context.Context, c domain.Client) error {
 		c.PostLogoutRedirectURIs = []string{}
 	}
 	_, err := s.pool.Exec(ctx, `
-		INSERT INTO clients (id, name, type, secret_hash, redirect_uris, post_logout_redirect_uris, frontchannel_logout_uri, token_endpoint_auth)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-		c.ID, c.Name, string(c.Type), c.SecretHash, c.RedirectURIs, c.PostLogoutRedirectURIs, c.FrontChannelLogoutURI, c.TokenEndpointAuth,
+		INSERT INTO clients (id, name, type, secret_hash, redirect_uris, post_logout_redirect_uris, frontchannel_logout_uri, backchannel_logout_uri, token_endpoint_auth)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+		c.ID, c.Name, string(c.Type), c.SecretHash, c.RedirectURIs, c.PostLogoutRedirectURIs, c.FrontChannelLogoutURI, c.BackChannelLogoutURI, c.TokenEndpointAuth,
 	)
 	return mapErr(err)
 }
@@ -184,9 +184,9 @@ func (s *Store) GetClient(ctx context.Context, id string) (domain.Client, error)
 	var c domain.Client
 	var typ string
 	err := s.pool.QueryRow(ctx, `
-		SELECT id, name, type, secret_hash, redirect_uris, post_logout_redirect_uris, frontchannel_logout_uri, token_endpoint_auth
+		SELECT id, name, type, secret_hash, redirect_uris, post_logout_redirect_uris, frontchannel_logout_uri, backchannel_logout_uri, token_endpoint_auth
 		FROM clients WHERE id = $1`, id,
-	).Scan(&c.ID, &c.Name, &typ, &c.SecretHash, &c.RedirectURIs, &c.PostLogoutRedirectURIs, &c.FrontChannelLogoutURI, &c.TokenEndpointAuth)
+	).Scan(&c.ID, &c.Name, &typ, &c.SecretHash, &c.RedirectURIs, &c.PostLogoutRedirectURIs, &c.FrontChannelLogoutURI, &c.BackChannelLogoutURI, &c.TokenEndpointAuth)
 	if err != nil {
 		return domain.Client{}, mapErr(err)
 	}
@@ -196,7 +196,7 @@ func (s *Store) GetClient(ctx context.Context, id string) (domain.Client, error)
 
 func (s *Store) ListClients(ctx context.Context) ([]domain.Client, error) {
 	rows, err := s.pool.Query(ctx, `
-		SELECT id, name, type, secret_hash, redirect_uris, post_logout_redirect_uris, frontchannel_logout_uri, token_endpoint_auth
+		SELECT id, name, type, secret_hash, redirect_uris, post_logout_redirect_uris, frontchannel_logout_uri, backchannel_logout_uri, token_endpoint_auth
 		FROM clients ORDER BY id`)
 	if err != nil {
 		return nil, err
@@ -206,7 +206,7 @@ func (s *Store) ListClients(ctx context.Context) ([]domain.Client, error) {
 	for rows.Next() {
 		var c domain.Client
 		var typ string
-		if err := rows.Scan(&c.ID, &c.Name, &typ, &c.SecretHash, &c.RedirectURIs, &c.PostLogoutRedirectURIs, &c.FrontChannelLogoutURI, &c.TokenEndpointAuth); err != nil {
+		if err := rows.Scan(&c.ID, &c.Name, &typ, &c.SecretHash, &c.RedirectURIs, &c.PostLogoutRedirectURIs, &c.FrontChannelLogoutURI, &c.BackChannelLogoutURI, &c.TokenEndpointAuth); err != nil {
 			return nil, err
 		}
 		c.Type = domain.ClientType(typ)
@@ -217,8 +217,8 @@ func (s *Store) ListClients(ctx context.Context) ([]domain.Client, error) {
 
 func (s *Store) UpdateClient(ctx context.Context, id string, patch domain.ClientPatch) error {
 	tag, err := s.pool.Exec(ctx, `
-		UPDATE clients SET name = $2, redirect_uris = $3, post_logout_redirect_uris = $4, frontchannel_logout_uri = $5 WHERE id = $1`,
-		id, patch.Name, patch.RedirectURIs, patch.PostLogoutRedirectURIs, patch.FrontChannelLogoutURI)
+		UPDATE clients SET name = $2, redirect_uris = $3, post_logout_redirect_uris = $4, frontchannel_logout_uri = $5, backchannel_logout_uri = $6 WHERE id = $1`,
+		id, patch.Name, patch.RedirectURIs, patch.PostLogoutRedirectURIs, patch.FrontChannelLogoutURI, patch.BackChannelLogoutURI)
 	if err != nil {
 		return mapErr(err)
 	}

@@ -35,6 +35,9 @@ func TestPublicClientInsertsOnce(t *testing.T) {
 	if c.FrontChannelLogoutURI != "http://localhost:3001/frontchannel-logout" {
 		t.Fatalf("frontchannel %q", c.FrontChannelLogoutURI)
 	}
+	if c.BackChannelLogoutURI != "http://localhost:3001/backchannel-logout" {
+		t.Fatalf("backchannel %q", c.BackChannelLogoutURI)
+	}
 }
 
 func TestPublicClientBackfillsPostLogout(t *testing.T) {

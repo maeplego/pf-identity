@@ -12,8 +12,11 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/portfolio/pf-identity-server/internal/domain"
+	"github.com/portfolio/pf-identity-server/internal/oidc"
 )
 
 func TestRPInitiatedLogoutRedirectsAndEndsSession(t *testing.T) {
@@ -161,6 +164,9 @@ func TestDiscoveryAdvertisesEndSession(t *testing.T) {
 	if doc["frontchannel_logout_supported"] != true || doc["frontchannel_logout_session_supported"] != true {
 		t.Fatalf("%v", doc)
 	}
+	if doc["backchannel_logout_supported"] != true || doc["backchannel_logout_session_supported"] != true {
+		t.Fatalf("%v", doc)
+	}
 }
 
 func TestFrontChannelLogoutRendersIframes(t *testing.T) {
@@ -217,6 +223,98 @@ func TestFrontChannelLogoutRendersIframes(t *testing.T) {
 	}
 	if !strings.Contains(html, postLogout) {
 		t.Fatalf("missing continue: %s", html)
+	}
+}
+
+func TestBackChannelLogoutPostsLogoutToken(t *testing.T) {
+	got := make(chan string, 1)
+	rp := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Errorf("method %s", r.Method)
+		}
+		if err := r.ParseForm(); err != nil {
+			t.Error(err)
+			return
+		}
+		got <- r.Form.Get("logout_token")
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(rp.Close)
+
+	srv, store := testServer(t)
+	redirect := "http://127.0.0.1/cb"
+	postLogout := "http://127.0.0.1/logged-out"
+	_ = store.CreateClient(context.Background(), domain.Client{
+		ID:                     "rp-bc",
+		Name:                   "BC",
+		Type:                   domain.ClientPublic,
+		RedirectURIs:           []string{redirect},
+		PostLogoutRedirectURIs: []string{postLogout},
+		BackChannelLogoutURI:   rp.URL + "/backchannel-logout",
+	})
+
+	ts := httptest.NewServer(srv)
+	t.Cleanup(ts.Close)
+	httpClient, tok := loginAndMint(t, ts, "rp-bc", redirect, "bc@example.com", []string{redirect, postLogout})
+	hint := tok["id_token"].(string)
+
+	res, err := httpClient.Get(ts.URL + "/end-session?" + url.Values{
+		"id_token_hint":           {hint},
+		"client_id":               {"rp-bc"},
+		"post_logout_redirect_uri": {postLogout},
+	}.Encode())
+	if err != nil {
+		t.Fatal(err)
+	}
+	res.Body.Close()
+	if res.StatusCode != http.StatusFound {
+		t.Fatalf("status %d", res.StatusCode)
+	}
+
+	select {
+	case raw := <-got:
+		if raw == "" {
+			t.Fatal("empty logout_token")
+		}
+		parsed, err := jwt.ParseString(raw, jwt.WithKeySet(srv.Signer.JWKS()), jwt.WithValidate(true), jwt.WithIssuer(srv.Cfg.Issuer))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if parsed.Subject() == "" {
+			t.Fatal("missing sub")
+		}
+		audOK := false
+		for _, a := range parsed.Audience() {
+			if a == "rp-bc" {
+				audOK = true
+			}
+		}
+		if !audOK {
+			t.Fatalf("aud %v", parsed.Audience())
+		}
+		if parsed.JwtID() == "" {
+			t.Fatal("missing jti")
+		}
+		if _, ok := parsed.Get("nonce"); ok {
+			t.Fatal("nonce must not be in logout_token")
+		}
+		sid, ok := parsed.Get("sid")
+		if !ok || sid == "" {
+			t.Fatal("missing sid")
+		}
+		ev, ok := parsed.Get("events")
+		if !ok {
+			t.Fatal("missing events")
+		}
+		m, ok := ev.(map[string]any)
+		if !ok {
+			t.Fatalf("events type %T", ev)
+		}
+		if _, ok := m[oidc.LogoutTokenEvent]; !ok {
+			t.Fatalf("events %v", m)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("IdP did not POST logout_token")
 	}
 }
 

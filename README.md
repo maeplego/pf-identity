@@ -49,7 +49,7 @@ Postgres ストアのテストは `IDENTITY_TEST_DATABASE_URL` か Docker が必
 
 各 RP はパスワードを持たず、この IdP の認可コード + PKCE S256 だけを使います。ユーザーの主キーは email ではなく ID Token の `sub` です。
 
-1. 管理 UI（http://localhost:3002）でクライアントを作る。`redirect_uri` と `post_logout_redirect_uri` はクエリまで含めて **完全一致** で登録する（localhost のポート違いも別エントリ）。
+1. 管理 UI（http://localhost:3002）でクライアントを作る。`redirect_uri` と `post_logout_redirect_uri` はクエリまで含めて **完全一致** で登録する（localhost のポート違いも別エントリ）。他 RP のログアウト連動が必要なら `frontchannel_logout_uri` と `backchannel_logout_uri` も登録する。
 2. confidential なら `client_secret` は作成時（または rotate）に一度だけ表示される。リポジトリに書かない。
 3. public（PWA / モバイル）は secret を持たない。PKCE は必須。
 4. RP は Discovery `http://localhost:8080/.well-known/openid-configuration` を読んでよい。

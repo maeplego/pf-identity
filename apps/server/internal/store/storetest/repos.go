@@ -185,11 +185,12 @@ func Repos(t *testing.T, s domain.Repos) {
 			RedirectURIs:           []string{"http://127.0.0.1/b"},
 			PostLogoutRedirectURIs: []string{"http://127.0.0.1/out"},
 			FrontChannelLogoutURI:  "http://127.0.0.1/fc",
+			BackChannelLogoutURI:   "http://127.0.0.1/bc",
 		}); err != nil {
 			t.Fatal(err)
 		}
 		gotC, _ := s.GetClient(ctx, c.ID)
-		if gotC.Name != "new" || gotC.RedirectURIs[0] != "http://127.0.0.1/b" || gotC.PostLogoutRedirectURIs[0] != "http://127.0.0.1/out" || gotC.FrontChannelLogoutURI != "http://127.0.0.1/fc" {
+		if gotC.Name != "new" || gotC.RedirectURIs[0] != "http://127.0.0.1/b" || gotC.PostLogoutRedirectURIs[0] != "http://127.0.0.1/out" || gotC.FrontChannelLogoutURI != "http://127.0.0.1/fc" || gotC.BackChannelLogoutURI != "http://127.0.0.1/bc" {
 			t.Fatalf("%+v", gotC)
 		}
 		if err := s.SetClientSecret(ctx, c.ID, "hash"); err != nil {

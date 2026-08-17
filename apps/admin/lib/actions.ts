@@ -22,6 +22,7 @@ export async function createClient(formData: FormData) {
       redirect_uris: redirectURIs,
       post_logout_redirect_uris: postLogoutURIs,
       frontchannel_logout_uri: String(formData.get("frontchannel_logout_uri") ?? "").trim(),
+      backchannel_logout_uri: String(formData.get("backchannel_logout_uri") ?? "").trim(),
     }),
   });
   if (!res.ok) {
@@ -58,6 +59,7 @@ export async function updateClient(formData: FormData) {
       redirect_uris: redirectURIs,
       post_logout_redirect_uris: postLogoutURIs,
       frontchannel_logout_uri: String(formData.get("frontchannel_logout_uri") ?? "").trim(),
+      backchannel_logout_uri: String(formData.get("backchannel_logout_uri") ?? "").trim(),
     }),
   });
   if (!res.ok) {

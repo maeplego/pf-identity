@@ -61,6 +61,13 @@ export default async function ClientDetailPage({
             <input name="frontchannel_logout_uri" defaultValue={client.frontchannel_logout_uri ?? ""} />
           </label>
         </p>
+        <p>
+          <label>
+            backchannel_logout_uri
+            <br />
+            <input name="backchannel_logout_uri" defaultValue={client.backchannel_logout_uri ?? ""} />
+          </label>
+        </p>
         <button type="submit">更新</button>
       </form>
       {client.type === "confidential" ? (

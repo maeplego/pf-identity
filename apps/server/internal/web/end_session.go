@@ -2,12 +2,16 @@ package web
 
 import (
 	"html/template"
+	"io"
 	"net/http"
 	"net/url"
+	"strings"
+	"time"
 
 	"github.com/portfolio/pf-identity-server/internal/domain"
 	"github.com/portfolio/pf-identity-server/internal/oauth"
 	"github.com/portfolio/pf-identity-server/internal/oidc"
+	"github.com/portfolio/pf-identity-server/internal/random"
 	"github.com/portfolio/pf-identity-server/internal/session"
 )
 
@@ -67,6 +71,8 @@ func (s *Server) handleEndSession(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) finishLogout(w http.ResponseWriter, r *http.Request, req endSessionReq, defaultNext string) {
 	sid := s.currentSID(r)
+	user, _ := s.currentUser(r)
+	s.notifyBackChannel(r, sid, user.ID)
 	iframes := s.frontChannelIFrames(r, sid)
 	s.endBrowserSession(w, r)
 	next := defaultNext
@@ -158,6 +164,57 @@ func (s *Server) frontChannelIFrames(r *http.Request, sid string) []string {
 		out = append(out, src)
 	}
 	return out
+}
+
+func (s *Server) notifyBackChannel(r *http.Request, sid, subject string) {
+	if sid == "" {
+		return
+	}
+	ids, err := s.Repos.ListSessionClients(r.Context(), sid)
+	if err != nil {
+		return
+	}
+	cli := s.LogoutHTTP
+	if cli == nil {
+		cli = http.DefaultClient
+	}
+	for _, cid := range ids {
+		c, err := s.Repos.GetClient(r.Context(), cid)
+		if err != nil || c.BackChannelLogoutURI == "" {
+			continue
+		}
+		if _, err := oauth.ParseRedirectURI(c.BackChannelLogoutURI); err != nil {
+			continue
+		}
+		jti, err := random.Token()
+		if err != nil {
+			continue
+		}
+		tok, err := s.Signer.SignLogoutToken(oidc.LogoutTokenInput{
+			Issuer:   s.Cfg.Issuer,
+			Subject:  subject,
+			Audience: c.ID,
+			SID:      sid,
+			JTI:      jti,
+			Now:      s.now(),
+			TTL:      2 * time.Minute,
+		})
+		if err != nil {
+			continue
+		}
+		body := url.Values{"logout_token": {tok}}.Encode()
+		req, err := http.NewRequestWithContext(r.Context(), http.MethodPost, c.BackChannelLogoutURI, strings.NewReader(body))
+		if err != nil {
+			continue
+		}
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		res, err := cli.Do(req)
+		if err != nil {
+			continue
+		}
+		_, _ = io.Copy(io.Discard, res.Body)
+		res.Body.Close()
+	}
 }
 
 func parseEndSession(r *http.Request) endSessionReq {

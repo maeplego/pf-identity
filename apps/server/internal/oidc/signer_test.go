@@ -53,6 +53,47 @@ func TestSignIDTokenRoundTrip(t *testing.T) {
 	_ = jwa.RS256
 }
 
+func TestSignLogoutToken(t *testing.T) {
+	s, err := GenerateRSA()
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now().UTC()
+	compact, err := s.SignLogoutToken(LogoutTokenInput{
+		Issuer:   "http://localhost:8080",
+		Subject:  "user-sub",
+		Audience: "client-1",
+		SID:      "sid-1",
+		JTI:      "jti-1",
+		Now:      now,
+		TTL:      2 * time.Minute,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	tok, err := jwt.Parse([]byte(compact), jwt.WithKeySet(s.JWKS()), jwt.WithValidate(true), jwt.WithAcceptableSkew(time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tok.Subject() != "user-sub" || tok.JwtID() != "jti-1" {
+		t.Fatalf("%v %s", tok.Subject(), tok.JwtID())
+	}
+	events, ok := tok.Get("events")
+	if !ok {
+		t.Fatal("missing events")
+	}
+	m, ok := events.(map[string]any)
+	if !ok {
+		t.Fatalf("events %T", events)
+	}
+	if _, ok := m[LogoutTokenEvent]; !ok {
+		t.Fatalf("events %v", events)
+	}
+	if _, ok := tok.Get("nonce"); ok {
+		t.Fatal("logout_token must not contain nonce")
+	}
+}
+
 func TestParseIDTokenHintAcceptsExpired(t *testing.T) {
 	s, err := GenerateRSA()
 	if err != nil {
