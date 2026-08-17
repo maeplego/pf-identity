@@ -4,13 +4,16 @@
 <form method="post" action="/register">
 <input type="hidden" name="csrf" value="{{.CSRF}}">
 <input type="hidden" name="continue" value="{{.Continue}}">
-<label>メール</label>
+<label>メール
 <input type="email" name="email" required autocomplete="username">
-<label>表示名</label>
+</label>
+<label>表示名
 <input type="text" name="name" required>
-<label>パスワード</label>
+</label>
+<label>パスワード
 <input type="password" name="password" required minlength="8" autocomplete="new-password">
+</label>
 <p><button type="submit">登録</button></p>
 </form>
-<p><a href="/login">ログインへ</a></p>
+<p><a href="/login?continue={{.Continue | urlquery}}">ログインへ</a></p>
 {{end}}
