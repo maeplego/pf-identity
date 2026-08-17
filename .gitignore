@@ -9,6 +9,10 @@ coverage.html
 vendor/
 node_modules/
 .next/
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
 
 # Secrets
 .env

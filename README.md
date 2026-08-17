@@ -8,6 +8,7 @@ P01 の Identity Provider 製品リポジトリです。**本番認証基盤の�
 apps/server/    Authorization Server (Go)
 apps/admin/     クライアント CRUD・ユーザー無効化・監査ログ
 apps/sample-rp  接続確認用 RP（Next.js）
+apps/e2e/       Playwright（ログイン、redirect 拒否、管理画面）
 deploy/         ローカル Compose
 ```
 
@@ -41,6 +42,8 @@ docker compose -f deploy/compose.yaml --env-file deploy/.env up --build
 - admin: http://localhost:3002
 
 Postgres ストアのテストは `IDENTITY_TEST_DATABASE_URL` か Docker が必要です。どちらも無いときはそのパッケージだけ Skip します。
+
+ブラウザ e2e は `apps/e2e`（手順はそちらの README）。同じ code の二回交換は `go test` 側が正本です。
 
 ## 他プロジェクトから接続する
 

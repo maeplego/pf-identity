@@ -113,6 +113,8 @@ func TestRegisterLoginLogout(t *testing.T) {
 	}
 }
 
+// TestAuthorizationCodePKCEAndReplay is the DESIGN demo lock for code replay.
+// Browser e2e cannot observe /token as reliably as this HTTP client.
 func TestAuthorizationCodePKCEAndReplay(t *testing.T) {
 	srv, store := testServer(t)
 	redirect := "http://127.0.0.1/cb"
@@ -395,6 +397,7 @@ func mintOfflineTokens(t *testing.T, ts *httptest.Server, clientID, redirect, em
 	return payload
 }
 
+// TestRejectsAlteredRedirectURI is the DESIGN demo lock for exact redirect_uri match.
 func TestRejectsAlteredRedirectURI(t *testing.T) {
 	srv, store := testServer(t)
 	_ = store.CreateClient(context.Background(), domain.Client{
