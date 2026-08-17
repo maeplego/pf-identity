@@ -1,6 +1,6 @@
 # Local compose for P01. Not a production deployment.
 
-Postgres is for the durable store. `apps/server` still defaults to `IDENTITY_STORE=memory`.
+Postgres is for the durable store. Set `IDENTITY_STORE=postgres` and `IDENTITY_DATABASE_URL` on `apps/server` after this database is up.
 
 Copy `.env.example` to `.env` (gitignored) and start from repo root:
 
