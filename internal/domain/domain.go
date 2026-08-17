@@ -1,0 +1,80 @@
+// Package domain is the persistence-agnostic model of the IdP.
+package domain
+
+import "time"
+
+// User is an account at this issuer. Email is unique and stored lowercased.
+type User struct {
+	ID            string
+	Email         string
+	Name          string
+	PasswordHash  string
+	EmailVerified bool
+	Disabled      bool
+	CreatedAt     time.Time
+}
+
+// ClientType distinguishes secret-bearing confidential RPs from public RPs (PKCE-only).
+type ClientType string
+
+const (
+	ClientConfidential ClientType = "confidential"
+	ClientPublic       ClientType = "public"
+)
+
+// Client is an OAuth client (relying party).
+type Client struct {
+	ID                   string
+	Name                 string
+	Type                 ClientType
+	SecretHash           string
+	RedirectURIs         []string
+	TokenEndpointAuth    string
+}
+
+// Session is a browser login at the IdP (not an OAuth access token).
+type Session struct {
+	TokenHash string
+	UserID    string
+	ExpiresAt time.Time
+}
+
+// AuthCode is a one-time authorization code. The plaintext is never stored.
+type AuthCode struct {
+	Hash          string
+	ClientID      string
+	UserID        string
+	RedirectURI   string
+	Scopes        []string
+	Nonce         string
+	CodeChallenge string
+	ExpiresAt     time.Time
+	Used          bool
+}
+
+// RefreshToken is rotated on use. FamilyID groups a chain so reuse can revoke all.
+type RefreshToken struct {
+	Hash      string
+	FamilyID  string
+	ClientID  string
+	UserID    string
+	Scopes    []string
+	ExpiresAt time.Time
+	Revoked   bool
+}
+
+// AccessToken is opaque. Resource servers call UserInfo or introspect later.
+type AccessToken struct {
+	Hash      string
+	ClientID  string
+	UserID    string
+	Scopes    []string
+	ExpiresAt time.Time
+}
+
+// Consent records that a user allowed a client a set of scopes.
+type Consent struct {
+	UserID   string
+	ClientID string
+	Scopes   []string
+}
