@@ -109,10 +109,10 @@ func (s *Store) SetUserDisabled(ctx context.Context, id string, disabled bool) e
 
 func (s *Store) PutSession(ctx context.Context, sess domain.Session) error {
 	_, err := s.pool.Exec(ctx, `
-		INSERT INTO sessions (token_hash, user_id, expires_at)
-		VALUES ($1, $2, $3)
-		ON CONFLICT (token_hash) DO UPDATE SET user_id = EXCLUDED.user_id, expires_at = EXCLUDED.expires_at`,
-		sess.TokenHash, sess.UserID, sess.ExpiresAt.UTC(),
+		INSERT INTO sessions (token_hash, user_id, sid, expires_at)
+		VALUES ($1, $2, $3, $4)
+		ON CONFLICT (token_hash) DO UPDATE SET user_id = EXCLUDED.user_id, sid = EXCLUDED.sid, expires_at = EXCLUDED.expires_at`,
+		sess.TokenHash, sess.UserID, sess.SID, sess.ExpiresAt.UTC(),
 	)
 	return mapErr(err)
 }
@@ -120,8 +120,8 @@ func (s *Store) PutSession(ctx context.Context, sess domain.Session) error {
 func (s *Store) GetSession(ctx context.Context, tokenHash string) (domain.Session, error) {
 	var sess domain.Session
 	err := s.pool.QueryRow(ctx, `
-		SELECT token_hash, user_id, expires_at FROM sessions WHERE token_hash = $1`, tokenHash,
-	).Scan(&sess.TokenHash, &sess.UserID, &sess.ExpiresAt)
+		SELECT token_hash, user_id, sid, expires_at FROM sessions WHERE token_hash = $1`, tokenHash,
+	).Scan(&sess.TokenHash, &sess.UserID, &sess.SID, &sess.ExpiresAt)
 	if err != nil {
 		return domain.Session{}, mapErr(err)
 	}
@@ -129,15 +129,53 @@ func (s *Store) GetSession(ctx context.Context, tokenHash string) (domain.Sessio
 }
 
 func (s *Store) DeleteSession(ctx context.Context, tokenHash string) error {
-	_, err := s.pool.Exec(ctx, `DELETE FROM sessions WHERE token_hash = $1`, tokenHash)
+	var sid string
+	err := s.pool.QueryRow(ctx, `SELECT sid FROM sessions WHERE token_hash = $1`, tokenHash).Scan(&sid)
+	if err == nil && sid != "" {
+		_, _ = s.pool.Exec(ctx, `DELETE FROM session_clients WHERE sid = $1`, sid)
+	}
+	_, err = s.pool.Exec(ctx, `DELETE FROM sessions WHERE token_hash = $1`, tokenHash)
 	return mapErr(err)
 }
 
-func (s *Store) CreateClient(ctx context.Context, c domain.Client) error {
+func (s *Store) AddSessionClient(ctx context.Context, sid, clientID string) error {
+	if sid == "" || clientID == "" {
+		return nil
+	}
 	_, err := s.pool.Exec(ctx, `
-		INSERT INTO clients (id, name, type, secret_hash, redirect_uris, token_endpoint_auth)
-		VALUES ($1, $2, $3, $4, $5, $6)`,
-		c.ID, c.Name, string(c.Type), c.SecretHash, c.RedirectURIs, c.TokenEndpointAuth,
+		INSERT INTO session_clients (sid, client_id) VALUES ($1, $2)
+		ON CONFLICT (sid, client_id) DO NOTHING`, sid, clientID)
+	return mapErr(err)
+}
+
+func (s *Store) ListSessionClients(ctx context.Context, sid string) ([]string, error) {
+	if sid == "" {
+		return nil, nil
+	}
+	rows, err := s.pool.Query(ctx, `SELECT client_id FROM session_clients WHERE sid = $1 ORDER BY client_id`, sid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		out = append(out, id)
+	}
+	return out, rows.Err()
+}
+
+func (s *Store) CreateClient(ctx context.Context, c domain.Client) error {
+	if c.PostLogoutRedirectURIs == nil {
+		c.PostLogoutRedirectURIs = []string{}
+	}
+	_, err := s.pool.Exec(ctx, `
+		INSERT INTO clients (id, name, type, secret_hash, redirect_uris, post_logout_redirect_uris, frontchannel_logout_uri, token_endpoint_auth)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+		c.ID, c.Name, string(c.Type), c.SecretHash, c.RedirectURIs, c.PostLogoutRedirectURIs, c.FrontChannelLogoutURI, c.TokenEndpointAuth,
 	)
 	return mapErr(err)
 }
@@ -146,9 +184,9 @@ func (s *Store) GetClient(ctx context.Context, id string) (domain.Client, error)
 	var c domain.Client
 	var typ string
 	err := s.pool.QueryRow(ctx, `
-		SELECT id, name, type, secret_hash, redirect_uris, token_endpoint_auth
+		SELECT id, name, type, secret_hash, redirect_uris, post_logout_redirect_uris, frontchannel_logout_uri, token_endpoint_auth
 		FROM clients WHERE id = $1`, id,
-	).Scan(&c.ID, &c.Name, &typ, &c.SecretHash, &c.RedirectURIs, &c.TokenEndpointAuth)
+	).Scan(&c.ID, &c.Name, &typ, &c.SecretHash, &c.RedirectURIs, &c.PostLogoutRedirectURIs, &c.FrontChannelLogoutURI, &c.TokenEndpointAuth)
 	if err != nil {
 		return domain.Client{}, mapErr(err)
 	}
@@ -158,7 +196,7 @@ func (s *Store) GetClient(ctx context.Context, id string) (domain.Client, error)
 
 func (s *Store) ListClients(ctx context.Context) ([]domain.Client, error) {
 	rows, err := s.pool.Query(ctx, `
-		SELECT id, name, type, secret_hash, redirect_uris, token_endpoint_auth
+		SELECT id, name, type, secret_hash, redirect_uris, post_logout_redirect_uris, frontchannel_logout_uri, token_endpoint_auth
 		FROM clients ORDER BY id`)
 	if err != nil {
 		return nil, err
@@ -168,7 +206,7 @@ func (s *Store) ListClients(ctx context.Context) ([]domain.Client, error) {
 	for rows.Next() {
 		var c domain.Client
 		var typ string
-		if err := rows.Scan(&c.ID, &c.Name, &typ, &c.SecretHash, &c.RedirectURIs, &c.TokenEndpointAuth); err != nil {
+		if err := rows.Scan(&c.ID, &c.Name, &typ, &c.SecretHash, &c.RedirectURIs, &c.PostLogoutRedirectURIs, &c.FrontChannelLogoutURI, &c.TokenEndpointAuth); err != nil {
 			return nil, err
 		}
 		c.Type = domain.ClientType(typ)
@@ -177,9 +215,10 @@ func (s *Store) ListClients(ctx context.Context) ([]domain.Client, error) {
 	return out, rows.Err()
 }
 
-func (s *Store) UpdateClient(ctx context.Context, id, name string, redirectURIs []string) error {
+func (s *Store) UpdateClient(ctx context.Context, id string, patch domain.ClientPatch) error {
 	tag, err := s.pool.Exec(ctx, `
-		UPDATE clients SET name = $2, redirect_uris = $3 WHERE id = $1`, id, name, redirectURIs)
+		UPDATE clients SET name = $2, redirect_uris = $3, post_logout_redirect_uris = $4, frontchannel_logout_uri = $5 WHERE id = $1`,
+		id, patch.Name, patch.RedirectURIs, patch.PostLogoutRedirectURIs, patch.FrontChannelLogoutURI)
 	if err != nil {
 		return mapErr(err)
 	}
@@ -202,9 +241,9 @@ func (s *Store) SetClientSecret(ctx context.Context, id, secretHash string) erro
 
 func (s *Store) PutCode(ctx context.Context, c domain.AuthCode) error {
 	_, err := s.pool.Exec(ctx, `
-		INSERT INTO auth_codes (hash, client_id, user_id, redirect_uri, scopes, nonce, code_challenge, expires_at, used)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-		c.Hash, c.ClientID, c.UserID, c.RedirectURI, c.Scopes, c.Nonce, c.CodeChallenge, c.ExpiresAt.UTC(), c.Used,
+		INSERT INTO auth_codes (hash, client_id, user_id, redirect_uri, scopes, nonce, code_challenge, session_sid, expires_at, used)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+		c.Hash, c.ClientID, c.UserID, c.RedirectURI, c.Scopes, c.Nonce, c.CodeChallenge, c.SessionSID, c.ExpiresAt.UTC(), c.Used,
 	)
 	return mapErr(err)
 }
@@ -213,7 +252,7 @@ func (s *Store) TakeCode(ctx context.Context, hash string) (domain.AuthCode, err
 	row := s.pool.QueryRow(ctx, `
 		UPDATE auth_codes SET used = TRUE
 		WHERE hash = $1 AND used = FALSE
-		RETURNING hash, client_id, user_id, redirect_uri, scopes, nonce, code_challenge, expires_at, used`,
+		RETURNING hash, client_id, user_id, redirect_uri, scopes, nonce, code_challenge, session_sid, expires_at, used`,
 		hash,
 	)
 	c, err := scanCode(row)
@@ -233,7 +272,7 @@ func (s *Store) TakeCode(ctx context.Context, hash string) (domain.AuthCode, err
 
 func scanCode(row pgx.Row) (domain.AuthCode, error) {
 	var c domain.AuthCode
-	err := row.Scan(&c.Hash, &c.ClientID, &c.UserID, &c.RedirectURI, &c.Scopes, &c.Nonce, &c.CodeChallenge, &c.ExpiresAt, &c.Used)
+	err := row.Scan(&c.Hash, &c.ClientID, &c.UserID, &c.RedirectURI, &c.Scopes, &c.Nonce, &c.CodeChallenge, &c.SessionSID, &c.ExpiresAt, &c.Used)
 	if err != nil {
 		return domain.AuthCode{}, mapErr(err)
 	}
@@ -242,16 +281,17 @@ func scanCode(row pgx.Row) (domain.AuthCode, error) {
 
 func (s *Store) PutRefresh(ctx context.Context, t domain.RefreshToken) error {
 	_, err := s.pool.Exec(ctx, `
-		INSERT INTO refresh_tokens (hash, family_id, client_id, user_id, scopes, expires_at, revoked)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		INSERT INTO refresh_tokens (hash, family_id, client_id, user_id, scopes, session_sid, expires_at, revoked)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		ON CONFLICT (hash) DO UPDATE SET
 			family_id = EXCLUDED.family_id,
 			client_id = EXCLUDED.client_id,
 			user_id = EXCLUDED.user_id,
 			scopes = EXCLUDED.scopes,
+			session_sid = EXCLUDED.session_sid,
 			expires_at = EXCLUDED.expires_at,
 			revoked = EXCLUDED.revoked`,
-		t.Hash, t.FamilyID, t.ClientID, t.UserID, t.Scopes, t.ExpiresAt.UTC(), t.Revoked,
+		t.Hash, t.FamilyID, t.ClientID, t.UserID, t.Scopes, t.SessionSID, t.ExpiresAt.UTC(), t.Revoked,
 	)
 	return mapErr(err)
 }
@@ -259,9 +299,9 @@ func (s *Store) PutRefresh(ctx context.Context, t domain.RefreshToken) error {
 func (s *Store) GetRefresh(ctx context.Context, hash string) (domain.RefreshToken, error) {
 	var t domain.RefreshToken
 	err := s.pool.QueryRow(ctx, `
-		SELECT hash, family_id, client_id, user_id, scopes, expires_at, revoked
+		SELECT hash, family_id, client_id, user_id, scopes, session_sid, expires_at, revoked
 		FROM refresh_tokens WHERE hash = $1`, hash,
-	).Scan(&t.Hash, &t.FamilyID, &t.ClientID, &t.UserID, &t.Scopes, &t.ExpiresAt, &t.Revoked)
+	).Scan(&t.Hash, &t.FamilyID, &t.ClientID, &t.UserID, &t.Scopes, &t.SessionSID, &t.ExpiresAt, &t.Revoked)
 	if err != nil {
 		return domain.RefreshToken{}, mapErr(err)
 	}
@@ -272,11 +312,11 @@ func (s *Store) TakeRefresh(ctx context.Context, hash string) (domain.RefreshTok
 	row := s.pool.QueryRow(ctx, `
 		UPDATE refresh_tokens SET revoked = TRUE
 		WHERE hash = $1 AND revoked = FALSE
-		RETURNING hash, family_id, client_id, user_id, scopes, expires_at, revoked`,
+		RETURNING hash, family_id, client_id, user_id, scopes, session_sid, expires_at, revoked`,
 		hash,
 	)
 	var t domain.RefreshToken
-	err := row.Scan(&t.Hash, &t.FamilyID, &t.ClientID, &t.UserID, &t.Scopes, &t.ExpiresAt, &t.Revoked)
+	err := row.Scan(&t.Hash, &t.FamilyID, &t.ClientID, &t.UserID, &t.Scopes, &t.SessionSID, &t.ExpiresAt, &t.Revoked)
 	if err == nil {
 		return t, nil
 	}

@@ -20,12 +20,14 @@ import (
 var clientIDPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,62}$`)
 
 type adminClientView struct {
-	ID                string   `json:"id"`
-	Name              string   `json:"name"`
-	Type              string   `json:"type"`
-	RedirectURIs      []string `json:"redirect_uris"`
-	TokenEndpointAuth string   `json:"token_endpoint_auth"`
-	HasSecret         bool     `json:"has_secret"`
+	ID                     string   `json:"id"`
+	Name                   string   `json:"name"`
+	Type                   string   `json:"type"`
+	RedirectURIs           []string `json:"redirect_uris"`
+	PostLogoutRedirectURIs []string `json:"post_logout_redirect_uris"`
+	FrontChannelLogoutURI  string   `json:"frontchannel_logout_uri"`
+	TokenEndpointAuth      string   `json:"token_endpoint_auth"`
+	HasSecret              bool     `json:"has_secret"`
 }
 
 type adminUserView struct {
@@ -71,10 +73,12 @@ func (s *Server) handleAdminCreateClient(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	var in struct {
-		ID           string   `json:"id"`
-		Name         string   `json:"name"`
-		Type         string   `json:"type"`
-		RedirectURIs []string `json:"redirect_uris"`
+		ID                     string   `json:"id"`
+		Name                   string   `json:"name"`
+		Type                   string   `json:"type"`
+		RedirectURIs           []string `json:"redirect_uris"`
+		PostLogoutRedirectURIs []string `json:"post_logout_redirect_uris"`
+		FrontChannelLogoutURI  string   `json:"frontchannel_logout_uri"`
 	}
 	if err := decodeJSON(r, &in); err != nil {
 		http.Error(w, "invalid json", http.StatusBadRequest)
@@ -98,7 +102,17 @@ func (s *Server) handleAdminCreateClient(w http.ResponseWriter, r *http.Request)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	c := domain.Client{ID: cid, Name: name, RedirectURIs: uris}
+	posts, err := normalizeOptionalURIs(in.PostLogoutRedirectURIs, "post_logout_redirect_uri")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	fc, err := normalizeOptionalURI(in.FrontChannelLogoutURI, "frontchannel_logout_uri")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	c := domain.Client{ID: cid, Name: name, RedirectURIs: uris, PostLogoutRedirectURIs: posts, FrontChannelLogoutURI: fc}
 	plainSecret := ""
 	switch domain.ClientType(in.Type) {
 	case domain.ClientConfidential:
@@ -154,8 +168,10 @@ func (s *Server) handleAdminUpdateClient(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	var in struct {
-		Name         string   `json:"name"`
-		RedirectURIs []string `json:"redirect_uris"`
+		Name                   string   `json:"name"`
+		RedirectURIs           []string `json:"redirect_uris"`
+		PostLogoutRedirectURIs []string `json:"post_logout_redirect_uris"`
+		FrontChannelLogoutURI  string   `json:"frontchannel_logout_uri"`
 	}
 	if err := decodeJSON(r, &in); err != nil {
 		http.Error(w, "invalid json", http.StatusBadRequest)
@@ -171,7 +187,22 @@ func (s *Server) handleAdminUpdateClient(w http.ResponseWriter, r *http.Request)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	if err := s.Repos.UpdateClient(r.Context(), r.PathValue("id"), name, uris); err != nil {
+	posts, err := normalizeOptionalURIs(in.PostLogoutRedirectURIs, "post_logout_redirect_uri")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	fc, err := normalizeOptionalURI(in.FrontChannelLogoutURI, "frontchannel_logout_uri")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err := s.Repos.UpdateClient(r.Context(), r.PathValue("id"), domain.ClientPatch{
+		Name:                   name,
+		RedirectURIs:           uris,
+		PostLogoutRedirectURIs: posts,
+		FrontChannelLogoutURI:  fc,
+	}); err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
 			http.Error(w, "not found", http.StatusNotFound)
 			return
@@ -290,13 +321,19 @@ func viewClient(c domain.Client) adminClientView {
 	if uris == nil {
 		uris = []string{}
 	}
+	posts := c.PostLogoutRedirectURIs
+	if posts == nil {
+		posts = []string{}
+	}
 	return adminClientView{
-		ID:                c.ID,
-		Name:              c.Name,
-		Type:              string(c.Type),
-		RedirectURIs:      uris,
-		TokenEndpointAuth: c.TokenEndpointAuth,
-		HasSecret:         c.SecretHash != "",
+		ID:                     c.ID,
+		Name:                   c.Name,
+		Type:                   string(c.Type),
+		RedirectURIs:           uris,
+		PostLogoutRedirectURIs: posts,
+		FrontChannelLogoutURI:  c.FrontChannelLogoutURI,
+		TokenEndpointAuth:      c.TokenEndpointAuth,
+		HasSecret:              c.SecretHash != "",
 	}
 }
 
@@ -334,6 +371,37 @@ func normalizeRedirects(raw []string) ([]string, error) {
 		return nil, errors.New("at least one redirect_uri is required")
 	}
 	return out, nil
+}
+
+func normalizeOptionalURIs(raw []string, field string) ([]string, error) {
+	out := make([]string, 0, len(raw))
+	seen := map[string]struct{}{}
+	for _, item := range raw {
+		item = strings.TrimSpace(item)
+		if item == "" {
+			continue
+		}
+		if _, err := oauth.ParseRedirectURI(item); err != nil {
+			return nil, errors.New(field + " must be an absolute http(s) URL without a fragment")
+		}
+		if _, ok := seen[item]; ok {
+			continue
+		}
+		seen[item] = struct{}{}
+		out = append(out, item)
+	}
+	return out, nil
+}
+
+func normalizeOptionalURI(raw, field string) (string, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return "", nil
+	}
+	if _, err := oauth.ParseRedirectURI(raw); err != nil {
+		return "", errors.New(field + " must be an absolute http(s) URL without a fragment")
+	}
+	return raw, nil
 }
 
 func decodeJSON(r *http.Request, dst any) error {

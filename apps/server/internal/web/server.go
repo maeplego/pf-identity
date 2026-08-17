@@ -21,15 +21,21 @@ import (
 var templateFS embed.FS
 
 type pageData struct {
-	Title      string
-	Error      string
-	CSRF       string
-	Continue   string
-	Name       string
-	Email      string
-	ClientName string
-	Scopes     []string
-	RequestID  string
+	Title                 string
+	Error                 string
+	CSRF                  string
+	Continue              string
+	Name                  string
+	Email                 string
+	ClientName            string
+	Scopes                []string
+	RequestID             string
+	IDTokenHint           string
+	PostLogoutRedirectURI string
+	State                 string
+	ClientID              string
+	IFrames               []string
+	ContinueURL           template.URL
 }
 
 type pendingAuth struct {
@@ -73,7 +79,7 @@ func NewServer(cfg config.Config, acc *account.Service, sess *session.Service, r
 		tpl:      map[string]*template.Template{},
 		mux:      http.NewServeMux(),
 	}
-	for _, name := range []string{"login", "register", "consent", "home"} {
+	for _, name := range []string{"login", "register", "consent", "home", "end_session", "logged_out", "front_channel"} {
 		t, err := template.ParseFS(templateFS, "templates/layout.html", "templates/"+name+".html")
 		if err != nil {
 			return nil, err
@@ -86,6 +92,8 @@ func NewServer(cfg config.Config, acc *account.Service, sess *session.Service, r
 	s.mux.HandleFunc("GET /login", s.handleLoginForm)
 	s.mux.HandleFunc("POST /login", s.handleLogin)
 	s.mux.HandleFunc("POST /logout", s.handleLogout)
+	s.mux.HandleFunc("GET /end-session", s.handleEndSession)
+	s.mux.HandleFunc("POST /end-session", s.handleEndSession)
 	s.mux.HandleFunc("GET /{$}", s.handleHome)
 	s.mux.HandleFunc("GET /authorize", s.handleAuthorize)
 	s.mux.HandleFunc("POST /consent", s.handleConsent)
@@ -138,4 +146,16 @@ func (s *Server) currentUser(r *http.Request) (domain.User, bool) {
 		return domain.User{}, false
 	}
 	return u, true
+}
+
+func (s *Server) currentSID(r *http.Request) string {
+	c, err := r.Cookie(session.CookieName())
+	if err != nil {
+		return ""
+	}
+	sess, err := s.Sessions.LookupSession(r.Context(), c.Value)
+	if err != nil {
+		return ""
+	}
+	return sess.SID
 }

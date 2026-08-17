@@ -7,7 +7,6 @@ import (
 
 	"github.com/portfolio/pf-identity-server/internal/account"
 	"github.com/portfolio/pf-identity-server/internal/domain"
-	"github.com/portfolio/pf-identity-server/internal/session"
 )
 
 func (s *Server) handleRegisterForm(w http.ResponseWriter, r *http.Request) {
@@ -82,12 +81,7 @@ func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "csrf", http.StatusBadRequest)
 		return
 	}
-	c, _ := r.Cookie(session.CookieName())
-	if c != nil {
-		_ = s.Sessions.End(r.Context(), c.Value)
-	}
-	clearCookie(w, session.CookieName(), s.Cfg.CookieSecure)
-	http.Redirect(w, r, "/login", http.StatusSeeOther)
+	s.finishLogout(w, r, endSessionReq{}, "/login")
 }
 
 func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {

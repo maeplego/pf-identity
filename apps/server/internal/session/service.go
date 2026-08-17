@@ -30,8 +30,12 @@ func (s *Service) Start(ctx context.Context, userID string) (plain string, expir
 	if err != nil {
 		return "", time.Time{}, err
 	}
+	sid, err := random.Token()
+	if err != nil {
+		return "", time.Time{}, err
+	}
 	exp := s.Clock.Now().Add(s.TTL)
-	row := domain.Session{TokenHash: oauth.HashToken(plain), UserID: userID, ExpiresAt: exp}
+	row := domain.Session{TokenHash: oauth.HashToken(plain), UserID: userID, SID: sid, ExpiresAt: exp}
 	if err := s.Sessions.PutSession(ctx, row); err != nil {
 		return "", time.Time{}, err
 	}
@@ -40,18 +44,27 @@ func (s *Service) Start(ctx context.Context, userID string) (plain string, expir
 
 // Lookup returns the user id for a still-valid session cookie.
 func (s *Service) Lookup(ctx context.Context, plain string) (string, error) {
-	if plain == "" {
-		return "", domain.ErrNotFound
-	}
-	row, err := s.Sessions.GetSession(ctx, oauth.HashToken(plain))
+	row, err := s.LookupSession(ctx, plain)
 	if err != nil {
 		return "", err
 	}
+	return row.UserID, nil
+}
+
+// LookupSession returns the full session row so logout can fan out by sid.
+func (s *Service) LookupSession(ctx context.Context, plain string) (domain.Session, error) {
+	if plain == "" {
+		return domain.Session{}, domain.ErrNotFound
+	}
+	row, err := s.Sessions.GetSession(ctx, oauth.HashToken(plain))
+	if err != nil {
+		return domain.Session{}, err
+	}
 	if !row.ExpiresAt.After(s.Clock.Now()) {
 		_ = s.Sessions.DeleteSession(ctx, row.TokenHash)
-		return "", domain.ErrNotFound
+		return domain.Session{}, domain.ErrNotFound
 	}
-	return row.UserID, nil
+	return row, nil
 }
 
 // End forgets the session. Missing rows are ignored so logout is idempotent.

@@ -52,6 +52,7 @@ export default defineConfig({
         OIDC_ISSUER: idp,
         OIDC_CLIENT_ID: "sample-rp",
         OIDC_REDIRECT_URI: `${rp}/callback`,
+        OIDC_POST_LOGOUT_REDIRECT_URI: `${rp}/logged-out`,
       },
     },
     {

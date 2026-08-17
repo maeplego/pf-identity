@@ -22,6 +22,7 @@ func TestSignIDTokenRoundTrip(t *testing.T) {
 		Email:    "a@b.co",
 		Name:     "A",
 		Verified: false,
+		SID:      "sid-1",
 		Now:      now,
 		TTL:      time.Hour,
 	})
@@ -42,8 +43,64 @@ func TestSignIDTokenRoundTrip(t *testing.T) {
 	if nonce != "n-1" {
 		t.Fatalf("nonce %v", nonce)
 	}
+	sid, _ := tok.Get("sid")
+	if sid != "sid-1" {
+		t.Fatalf("sid %v", sid)
+	}
 	if s.JWKS().Len() != 1 {
 		t.Fatal("expected one public key")
 	}
 	_ = jwa.RS256
+}
+
+func TestParseIDTokenHintAcceptsExpired(t *testing.T) {
+	s, err := GenerateRSA()
+	if err != nil {
+		t.Fatal(err)
+	}
+	compact, err := s.SignIDToken(IDTokenInput{
+		Issuer:   "http://localhost:8080",
+		Subject:  "user-sub",
+		Audience: "client-1",
+		Nonce:    "n",
+		Now:      time.Now().UTC().Add(-2 * time.Hour),
+		TTL:      time.Hour,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := jwt.Parse([]byte(compact), jwt.WithKeySet(s.JWKS()), jwt.WithValidate(true)); err == nil {
+		t.Fatal("expected expiry to fail full validation")
+	}
+	hint, err := s.ParseIDTokenHint(compact)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hint.Subject != "user-sub" || hint.Issuer != "http://localhost:8080" || hint.Audience[0] != "client-1" {
+		t.Fatalf("%+v", hint)
+	}
+}
+
+func TestParseIDTokenHintRejectsBadSignature(t *testing.T) {
+	s, err := GenerateRSA()
+	if err != nil {
+		t.Fatal(err)
+	}
+	other, err := GenerateRSA()
+	if err != nil {
+		t.Fatal(err)
+	}
+	compact, err := other.SignIDToken(IDTokenInput{
+		Issuer:   "http://localhost:8080",
+		Subject:  "user-sub",
+		Audience: "client-1",
+		Now:      time.Now().UTC(),
+		TTL:      time.Hour,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.ParseIDTokenHint(compact); err == nil {
+		t.Fatal("expected signature failure")
+	}
 }

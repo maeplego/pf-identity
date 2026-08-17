@@ -73,11 +73,18 @@ func TestAdminClientCRUDAndSecretOnce(t *testing.T) {
 
 	patch := adminJSON(t, ts.URL, "admin-test-token", http.MethodPatch, "/admin/api/clients/blog-cms", `{
 		"name":"Blog CMS",
-		"redirect_uris":["http://localhost:3000/callback","http://localhost:3000/cb2"]
+		"redirect_uris":["http://localhost:3000/callback","http://localhost:3000/cb2"],
+		"post_logout_redirect_uris":["http://localhost:3000/logged-out"]
 	}`)
 	patch.Body.Close()
 	if patch.StatusCode != http.StatusOK {
 		t.Fatalf("patch %d", patch.StatusCode)
+	}
+	gotAfter := adminJSON(t, ts.URL, "admin-test-token", http.MethodGet, "/admin/api/clients/blog-cms", "")
+	afterRaw, _ := io.ReadAll(gotAfter.Body)
+	gotAfter.Body.Close()
+	if !strings.Contains(string(afterRaw), "logged-out") {
+		t.Fatalf("post_logout missing: %s", afterRaw)
 	}
 
 	frag := adminJSON(t, ts.URL, "admin-test-token", http.MethodPost, "/admin/api/clients", `{

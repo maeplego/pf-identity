@@ -438,7 +438,7 @@ func TestDiscovery(t *testing.T) {
 	if err := json.NewDecoder(res.Body).Decode(&doc); err != nil {
 		t.Fatal(err)
 	}
-	if doc["token_endpoint"] == "" {
+	if doc["token_endpoint"] == "" || doc["end_session_endpoint"] == "" {
 		t.Fatalf("%v", doc)
 	}
 }

@@ -44,19 +44,22 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(new URL("/?error=token", url.origin));
   }
   try {
-    await verifyIdToken(tokens.id_token, nonce);
+    const payload = await verifyIdToken(tokens.id_token, nonce);
+    const sid = typeof payload.sid === "string" ? payload.sid : "";
+    const res = NextResponse.redirect(new URL("/", url.origin));
+    setOn(res, "rp_access", tokens.access_token);
+    setOn(res, "rp_id", tokens.id_token);
+    if (sid) {
+      setOn(res, "rp_sid", sid);
+    }
+    if (tokens.refresh_token) {
+      setOn(res, "rp_refresh", tokens.refresh_token);
+    }
+    clearOn(res, "rp_state");
+    clearOn(res, "rp_nonce");
+    clearOn(res, "rp_verifier");
+    return res;
   } catch {
     return NextResponse.redirect(new URL("/?error=id_token", url.origin));
   }
-
-  const res = NextResponse.redirect(new URL("/", url.origin));
-  setOn(res, "rp_access", tokens.access_token);
-  setOn(res, "rp_id", tokens.id_token);
-  if (tokens.refresh_token) {
-    setOn(res, "rp_refresh", tokens.refresh_token);
-  }
-  clearOn(res, "rp_state");
-  clearOn(res, "rp_nonce");
-  clearOn(res, "rp_verifier");
-  return res;
 }

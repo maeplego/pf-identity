@@ -62,7 +62,7 @@ func (s *Server) tokenAuthCode(w http.ResponseWriter, r *http.Request) {
 		clientError(w, http.StatusBadRequest, "invalid_grant", "pkce verification failed")
 		return
 	}
-	s.writeTokenResponse(w, r, client, row.UserID, row.Scopes, row.Nonce, oauth.Contains(row.Scopes, "offline_access"), "")
+	s.writeTokenResponse(w, r, client, row.UserID, row.Scopes, row.Nonce, oauth.Contains(row.Scopes, "offline_access"), "", row.SessionSID)
 }
 
 func (s *Server) tokenRefresh(w http.ResponseWriter, r *http.Request) {
@@ -87,10 +87,10 @@ func (s *Server) tokenRefresh(w http.ResponseWriter, r *http.Request) {
 		clientError(w, http.StatusBadRequest, "invalid_grant", "refresh token reuse or expiry")
 		return
 	}
-	s.writeTokenResponse(w, r, client, row.UserID, row.Scopes, "", true, row.FamilyID)
+	s.writeTokenResponse(w, r, client, row.UserID, row.Scopes, "", true, row.FamilyID, row.SessionSID)
 }
 
-func (s *Server) writeTokenResponse(w http.ResponseWriter, r *http.Request, client domain.Client, userID string, scopes []string, nonce string, withRefresh bool, familyID string) {
+func (s *Server) writeTokenResponse(w http.ResponseWriter, r *http.Request, client domain.Client, userID string, scopes []string, nonce string, withRefresh bool, familyID, sid string) {
 	user, err := s.Repos.GetByID(r.Context(), userID)
 	if err != nil {
 		clientError(w, http.StatusBadRequest, "invalid_grant", "user missing")
@@ -111,7 +111,7 @@ func (s *Server) writeTokenResponse(w http.ResponseWriter, r *http.Request, clie
 		clientError(w, http.StatusInternalServerError, "server_error", "token")
 		return
 	}
-	idTok, err := s.Signer.SignIDToken(oidcIDToken(s, user, client.ID, nonce))
+	idTok, err := s.Signer.SignIDToken(oidcIDToken(s, user, client.ID, nonce, sid))
 	if err != nil {
 		clientError(w, http.StatusInternalServerError, "server_error", "id_token")
 		return
@@ -133,12 +133,13 @@ func (s *Server) writeTokenResponse(w http.ResponseWriter, r *http.Request, clie
 			familyID = id.New()
 		}
 		if err := s.Repos.PutRefresh(r.Context(), domain.RefreshToken{
-			Hash:      oauth.HashToken(refreshPlain),
-			FamilyID:  familyID,
-			ClientID:  client.ID,
-			UserID:    userID,
-			Scopes:    scopes,
-			ExpiresAt: s.now().Add(s.Cfg.RefreshTTL),
+			Hash:       oauth.HashToken(refreshPlain),
+			FamilyID:   familyID,
+			ClientID:   client.ID,
+			UserID:     userID,
+			Scopes:     scopes,
+			SessionSID: sid,
+			ExpiresAt:  s.now().Add(s.Cfg.RefreshTTL),
 		}); err != nil {
 			clientError(w, http.StatusInternalServerError, "server_error", "refresh")
 			return
@@ -151,7 +152,7 @@ func (s *Server) writeTokenResponse(w http.ResponseWriter, r *http.Request, clie
 	_ = json.NewEncoder(w).Encode(resp)
 }
 
-func oidcIDToken(s *Server, user domain.User, aud, nonce string) oidc.IDTokenInput {
+func oidcIDToken(s *Server, user domain.User, aud, nonce, sid string) oidc.IDTokenInput {
 	return oidc.IDTokenInput{
 		Issuer:   s.Cfg.Issuer,
 		Subject:  user.ID,
@@ -160,6 +161,7 @@ func oidcIDToken(s *Server, user domain.User, aud, nonce string) oidc.IDTokenInp
 		Email:    user.Email,
 		Name:     user.Name,
 		Verified: user.EmailVerified,
+		SID:      sid,
 		Now:      s.now(),
 		TTL:      s.Cfg.AccessTTL,
 	}

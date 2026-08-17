@@ -24,18 +24,29 @@ const (
 
 // Client is an OAuth client (relying party).
 type Client struct {
-	ID                string
-	Name              string
-	Type              ClientType
-	SecretHash        string
-	RedirectURIs      []string
-	TokenEndpointAuth string
+	ID                     string
+	Name                   string
+	Type                   ClientType
+	SecretHash             string
+	RedirectURIs           []string
+	PostLogoutRedirectURIs []string
+	FrontChannelLogoutURI  string
+	TokenEndpointAuth      string
+}
+
+// ClientPatch is the mutable registration fields (secret and type stay put).
+type ClientPatch struct {
+	Name                   string
+	RedirectURIs           []string
+	PostLogoutRedirectURIs []string
+	FrontChannelLogoutURI  string
 }
 
 // Session is a browser login at the IdP (not an OAuth access token).
 type Session struct {
 	TokenHash string
 	UserID    string
+	SID       string
 	ExpiresAt time.Time
 }
 
@@ -48,19 +59,21 @@ type AuthCode struct {
 	Scopes        []string
 	Nonce         string
 	CodeChallenge string
+	SessionSID    string
 	ExpiresAt     time.Time
 	Used          bool
 }
 
 // RefreshToken is rotated on use. FamilyID groups a chain so reuse can revoke all.
 type RefreshToken struct {
-	Hash      string
-	FamilyID  string
-	ClientID  string
-	UserID    string
-	Scopes    []string
-	ExpiresAt time.Time
-	Revoked   bool
+	Hash       string
+	FamilyID   string
+	ClientID   string
+	UserID     string
+	Scopes     []string
+	SessionSID string
+	ExpiresAt  time.Time
+	Revoked    bool
 }
 
 // AccessToken is opaque. Resource servers call UserInfo or introspect later.

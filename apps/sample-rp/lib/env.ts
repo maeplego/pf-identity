@@ -27,3 +27,11 @@ export function redirectUri(): string {
   }
   return v;
 }
+
+export function postLogoutRedirectUri(): string {
+  const v = process.env.OIDC_POST_LOGOUT_REDIRECT_URI;
+  if (v) {
+    return v;
+  }
+  return redirectUri().replace(/\/callback$/, "/logged-out");
+}

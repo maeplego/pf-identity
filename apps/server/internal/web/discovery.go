@@ -20,6 +20,9 @@ func (s *Server) handleDiscovery(w http.ResponseWriter, _ *http.Request) {
 		"token_endpoint_auth_methods_supported": []string{"client_secret_basic", "client_secret_post", "none"},
 		"grant_types_supported":                 []string{"authorization_code", "refresh_token"},
 		"code_challenge_methods_supported":      []string{"S256"},
+		"end_session_endpoint":                  iss + "/end-session",
+		"frontchannel_logout_supported":         true,
+		"frontchannel_logout_session_supported": true,
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(doc)

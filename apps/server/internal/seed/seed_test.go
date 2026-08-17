@@ -29,6 +29,39 @@ func TestPublicClientInsertsOnce(t *testing.T) {
 	if c.Type != domain.ClientPublic || c.RedirectURIs[0] != cfg.SeedPublicRedirect {
 		t.Fatalf("%+v", c)
 	}
+	if len(c.PostLogoutRedirectURIs) != 1 || c.PostLogoutRedirectURIs[0] != "http://localhost:3001/logged-out" {
+		t.Fatalf("post_logout %+v", c.PostLogoutRedirectURIs)
+	}
+	if c.FrontChannelLogoutURI != "http://localhost:3001/frontchannel-logout" {
+		t.Fatalf("frontchannel %q", c.FrontChannelLogoutURI)
+	}
+}
+
+func TestPublicClientBackfillsPostLogout(t *testing.T) {
+	store := memory.NewStore()
+	cfg := config.Config{
+		SeedPublicClientID:   "sample-rp",
+		SeedPublicClientName: "Sample RP",
+		SeedPublicRedirect:   "http://localhost:3001/callback",
+	}
+	if err := store.CreateClient(context.Background(), domain.Client{
+		ID:           cfg.SeedPublicClientID,
+		Name:         cfg.SeedPublicClientName,
+		Type:         domain.ClientPublic,
+		RedirectURIs: []string{cfg.SeedPublicRedirect},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := PublicClient(context.Background(), store, cfg); err != nil {
+		t.Fatal(err)
+	}
+	c, err := store.GetClient(context.Background(), "sample-rp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(c.PostLogoutRedirectURIs) != 1 || c.PostLogoutRedirectURIs[0] != "http://localhost:3001/logged-out" {
+		t.Fatalf("%+v", c.PostLogoutRedirectURIs)
+	}
 }
 
 func TestPublicClientSkippedWhenUnset(t *testing.T) {

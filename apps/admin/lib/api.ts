@@ -19,6 +19,8 @@ export type Client = {
   name: string;
   type: string;
   redirect_uris: string[];
+  post_logout_redirect_uris: string[];
+  frontchannel_logout_uri: string;
   token_endpoint_auth: string;
   has_secret: boolean;
 };

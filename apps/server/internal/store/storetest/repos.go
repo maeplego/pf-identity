@@ -108,13 +108,20 @@ func Repos(t *testing.T, s domain.Repos) {
 		if err := s.Create(ctx, u); err != nil {
 			t.Fatal(err)
 		}
-		sess := domain.Session{TokenHash: id.New(), UserID: u.ID, ExpiresAt: now.Add(time.Hour)}
+		sess := domain.Session{TokenHash: id.New(), UserID: u.ID, SID: "sid-" + id.New(), ExpiresAt: now.Add(time.Hour)}
 		if err := s.PutSession(ctx, sess); err != nil {
 			t.Fatal(err)
 		}
 		gotS, err := s.GetSession(ctx, sess.TokenHash)
-		if err != nil || gotS.UserID != u.ID {
+		if err != nil || gotS.UserID != u.ID || gotS.SID != sess.SID {
 			t.Fatalf("session %v %+v", err, gotS)
+		}
+		if err := s.AddSessionClient(ctx, sess.SID, "rp-a"); err != nil {
+			t.Fatal(err)
+		}
+		ids, err := s.ListSessionClients(ctx, sess.SID)
+		if err != nil || len(ids) != 1 || ids[0] != "rp-a" {
+			t.Fatalf("session clients %v %v", err, ids)
 		}
 		if err := s.DeleteSession(ctx, sess.TokenHash); err != nil {
 			t.Fatal(err)
@@ -173,11 +180,16 @@ func Repos(t *testing.T, s domain.Repos) {
 		if err := s.CreateClient(ctx, c); err != nil {
 			t.Fatal(err)
 		}
-		if err := s.UpdateClient(ctx, c.ID, "new", []string{"http://127.0.0.1/b"}); err != nil {
+		if err := s.UpdateClient(ctx, c.ID, domain.ClientPatch{
+			Name:                   "new",
+			RedirectURIs:           []string{"http://127.0.0.1/b"},
+			PostLogoutRedirectURIs: []string{"http://127.0.0.1/out"},
+			FrontChannelLogoutURI:  "http://127.0.0.1/fc",
+		}); err != nil {
 			t.Fatal(err)
 		}
 		gotC, _ := s.GetClient(ctx, c.ID)
-		if gotC.Name != "new" || gotC.RedirectURIs[0] != "http://127.0.0.1/b" {
+		if gotC.Name != "new" || gotC.RedirectURIs[0] != "http://127.0.0.1/b" || gotC.PostLogoutRedirectURIs[0] != "http://127.0.0.1/out" || gotC.FrontChannelLogoutURI != "http://127.0.0.1/fc" {
 			t.Fatalf("%+v", gotC)
 		}
 		if err := s.SetClientSecret(ctx, c.ID, "hash"); err != nil {

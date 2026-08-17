@@ -42,6 +42,20 @@ export default async function NewClientPage({
             <textarea name="redirect_uris" rows={4} required placeholder="http://localhost:3000/callback" />
           </label>
         </p>
+        <p>
+          <label>
+            post_logout_redirect_uris（任意。RP-Initiated Logout の戻り先）
+            <br />
+            <textarea name="post_logout_redirect_uris" rows={3} placeholder="http://localhost:3000/logged-out" />
+          </label>
+        </p>
+        <p>
+          <label>
+            frontchannel_logout_uri（任意。他 RP ログアウト時に iframe で叩かれる）
+            <br />
+            <input name="frontchannel_logout_uri" placeholder="http://localhost:3000/frontchannel-logout" />
+          </label>
+        </p>
         <button type="submit">作成</button>
       </form>
     </main>

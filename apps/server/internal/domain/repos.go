@@ -16,6 +16,9 @@ type Sessions interface {
 	PutSession(ctx context.Context, s Session) error
 	GetSession(ctx context.Context, tokenHash string) (Session, error)
 	DeleteSession(ctx context.Context, tokenHash string) error
+	// AddSessionClient records that this OP session issued tokens to a client (Front-Channel fan-out).
+	AddSessionClient(ctx context.Context, sid, clientID string) error
+	ListSessionClients(ctx context.Context, sid string) ([]string, error)
 }
 
 // Clients persists relying parties.
@@ -23,7 +26,7 @@ type Clients interface {
 	CreateClient(ctx context.Context, c Client) error
 	GetClient(ctx context.Context, id string) (Client, error)
 	ListClients(ctx context.Context) ([]Client, error)
-	UpdateClient(ctx context.Context, id, name string, redirectURIs []string) error
+	UpdateClient(ctx context.Context, id string, patch ClientPatch) error
 	SetClientSecret(ctx context.Context, id, secretHash string) error
 }
 

@@ -30,10 +30,11 @@ type Config struct {
 	CodeTTL              time.Duration
 	AccessTTL            time.Duration
 	RefreshTTL           time.Duration
-	SeedPublicClientID   string
-	SeedPublicClientName string
-	SeedPublicRedirect   string
-	AdminToken           string
+	SeedPublicClientID     string
+	SeedPublicClientName   string
+	SeedPublicRedirect     string
+	SeedPublicPostLogout   string
+	AdminToken             string
 }
 
 // FromEnv reads IDENTITY_* variables. Missing optional values use conservative locals.
@@ -49,6 +50,7 @@ func FromEnv() (Config, error) {
 		SeedPublicClientID:   strings.TrimSpace(os.Getenv("IDENTITY_SEED_PUBLIC_CLIENT_ID")),
 		SeedPublicClientName: envOr("IDENTITY_SEED_PUBLIC_CLIENT_NAME", "Sample RP"),
 		SeedPublicRedirect:   strings.TrimSpace(os.Getenv("IDENTITY_SEED_PUBLIC_REDIRECT_URI")),
+		SeedPublicPostLogout: strings.TrimSpace(os.Getenv("IDENTITY_SEED_PUBLIC_POST_LOGOUT_REDIRECT_URI")),
 		AdminToken:           strings.TrimSpace(os.Getenv("IDENTITY_ADMIN_TOKEN")),
 	}
 

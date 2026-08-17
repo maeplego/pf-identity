@@ -9,6 +9,10 @@ export async function createClient(formData: FormData) {
     .split("\n")
     .map((s) => s.trim())
     .filter(Boolean);
+  const postLogoutURIs = String(formData.get("post_logout_redirect_uris") ?? "")
+    .split("\n")
+    .map((s) => s.trim())
+    .filter(Boolean);
   const res = await adminFetch("/admin/api/clients", {
     method: "POST",
     body: JSON.stringify({
@@ -16,6 +20,8 @@ export async function createClient(formData: FormData) {
       name: String(formData.get("name") ?? "").trim(),
       type: String(formData.get("type") ?? "public"),
       redirect_uris: redirectURIs,
+      post_logout_redirect_uris: postLogoutURIs,
+      frontchannel_logout_uri: String(formData.get("frontchannel_logout_uri") ?? "").trim(),
     }),
   });
   if (!res.ok) {
@@ -41,11 +47,17 @@ export async function updateClient(formData: FormData) {
     .split("\n")
     .map((s) => s.trim())
     .filter(Boolean);
+  const postLogoutURIs = String(formData.get("post_logout_redirect_uris") ?? "")
+    .split("\n")
+    .map((s) => s.trim())
+    .filter(Boolean);
   const res = await adminFetch(`/admin/api/clients/${encodeURIComponent(id)}`, {
     method: "PATCH",
     body: JSON.stringify({
       name: String(formData.get("name") ?? "").trim(),
       redirect_uris: redirectURIs,
+      post_logout_redirect_uris: postLogoutURIs,
+      frontchannel_logout_uri: String(formData.get("frontchannel_logout_uri") ?? "").trim(),
     }),
   });
   if (!res.ok) {

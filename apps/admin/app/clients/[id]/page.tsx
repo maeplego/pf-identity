@@ -43,6 +43,24 @@ export default async function ClientDetailPage({
             <textarea name="redirect_uris" rows={4} defaultValue={client.redirect_uris.join("\n")} required />
           </label>
         </p>
+        <p>
+          <label>
+            post_logout_redirect_uris
+            <br />
+            <textarea
+              name="post_logout_redirect_uris"
+              rows={3}
+              defaultValue={(client.post_logout_redirect_uris ?? []).join("\n")}
+            />
+          </label>
+        </p>
+        <p>
+          <label>
+            frontchannel_logout_uri
+            <br />
+            <input name="frontchannel_logout_uri" defaultValue={client.frontchannel_logout_uri ?? ""} />
+          </label>
+        </p>
         <button type="submit">更新</button>
       </form>
       {client.type === "confidential" ? (

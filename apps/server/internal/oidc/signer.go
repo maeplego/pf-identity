@@ -89,13 +89,14 @@ type IDTokenInput struct {
 	Email    string
 	Name     string
 	Verified bool
+	SID      string
 	Now      time.Time
 	TTL      time.Duration
 }
 
 // SignIDToken builds a compact RS256 JWT.
 func (s *Signer) SignIDToken(in IDTokenInput) (string, error) {
-	tok, err := jwt.NewBuilder().
+	b := jwt.NewBuilder().
 		Issuer(in.Issuer).
 		Subject(in.Subject).
 		Audience([]string{in.Audience}).
@@ -104,8 +105,11 @@ func (s *Signer) SignIDToken(in IDTokenInput) (string, error) {
 		Claim("nonce", in.Nonce).
 		Claim("email", in.Email).
 		Claim("email_verified", in.Verified).
-		Claim("name", in.Name).
-		Build()
+		Claim("name", in.Name)
+	if in.SID != "" {
+		b = b.Claim("sid", in.SID)
+	}
+	tok, err := b.Build()
 	if err != nil {
 		return "", err
 	}
@@ -114,4 +118,28 @@ func (s *Signer) SignIDToken(in IDTokenInput) (string, error) {
 		return "", err
 	}
 	return string(raw), nil
+}
+
+// IDTokenHint is the subset of an ID Token used by RP-Initiated Logout.
+// The spec allows expired hints, so expiry is not checked.
+type IDTokenHint struct {
+	Issuer   string
+	Subject  string
+	Audience []string
+}
+
+// ParseIDTokenHint verifies the signature and returns claims. Expiry is ignored on purpose.
+func (s *Signer) ParseIDTokenHint(compact string) (IDTokenHint, error) {
+	if compact == "" {
+		return IDTokenHint{}, fmt.Errorf("empty id_token_hint")
+	}
+	tok, err := jwt.Parse([]byte(compact), jwt.WithKeySet(s.JWKS()), jwt.WithValidate(false))
+	if err != nil {
+		return IDTokenHint{}, err
+	}
+	return IDTokenHint{
+		Issuer:   tok.Issuer(),
+		Subject:  tok.Subject(),
+		Audience: append([]string{}, tok.Audience()...),
+	}, nil
 }

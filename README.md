@@ -49,12 +49,12 @@ Postgres ストアのテストは `IDENTITY_TEST_DATABASE_URL` か Docker が必
 
 各 RP はパスワードを持たず、この IdP の認可コード + PKCE S256 だけを使います。ユーザーの主キーは email ではなく ID Token の `sub` です。
 
-1. 管理 UI（http://localhost:3002）でクライアントを作る。`redirect_uri` はクエリまで含めて **完全一致** で登録する（localhost のポート違いも別エントリ）。
+1. 管理 UI（http://localhost:3002）でクライアントを作る。`redirect_uri` と `post_logout_redirect_uri` はクエリまで含めて **完全一致** で登録する（localhost のポート違いも別エントリ）。
 2. confidential なら `client_secret` は作成時（または rotate）に一度だけ表示される。リポジトリに書かない。
 3. public（PWA / モバイル）は secret を持たない。PKCE は必須。
 4. RP は Discovery `http://localhost:8080/.well-known/openid-configuration` を読んでよい。
 5. `/token` はサーバー側で交換する。ブラウザからの CORS は付けていない。
-6. 発行クレーム: `iss`, `sub`, `aud`, `exp`, `iat`, `nonce`, および scope に応じた `email` / `email_verified` / `name`。未検証メールは `email_verified=false`。
+6. 発行クレーム: `iss`, `sub`, `aud`, `exp`, `iat`, `nonce`, `sid`、および scope に応じた `email` / `email_verified` / `name`。未検証メールは `email_verified=false`。
 7. `state` と `nonce` は RP が発行し、コールバックと ID Token で照合する。実装の見本は `apps/sample-rp`。
 
 スコープ初期セットは `openid`, `profile`, `email`, `offline_access`。アプリ固有 scope は Consent が崩れるので、利用側が必要になったら IdP に足す。

@@ -116,6 +116,7 @@ func (s *Server) issueCodeRedirect(w http.ResponseWriter, r *http.Request, userI
 		http.Error(w, "internal", http.StatusInternalServerError)
 		return
 	}
+	sid := s.currentSID(r)
 	row := domain.AuthCode{
 		Hash:          oauth.HashToken(plain),
 		ClientID:      p.ClientID,
@@ -124,12 +125,14 @@ func (s *Server) issueCodeRedirect(w http.ResponseWriter, r *http.Request, userI
 		Scopes:        p.Scopes,
 		Nonce:         p.Nonce,
 		CodeChallenge: p.Challenge,
+		SessionSID:    sid,
 		ExpiresAt:     s.now().Add(s.Cfg.CodeTTL),
 	}
 	if err := s.Repos.PutCode(r.Context(), row); err != nil {
 		http.Error(w, "internal", http.StatusInternalServerError)
 		return
 	}
+	_ = s.Repos.AddSessionClient(r.Context(), sid, p.ClientID)
 	u, err := url.Parse(p.RedirectURI)
 	if err != nil {
 		http.Error(w, "internal", http.StatusInternalServerError)

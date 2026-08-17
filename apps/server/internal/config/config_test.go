@@ -90,6 +90,22 @@ func TestFromEnvSeedPublicClient(t *testing.T) {
 	}
 }
 
+func TestFromEnvSeedPostLogout(t *testing.T) {
+	t.Setenv("IDENTITY_DEV_GENERATE_KEYS", "true")
+	t.Setenv("IDENTITY_STORE", "memory")
+	t.Setenv("IDENTITY_SEED_PUBLIC_CLIENT_ID", "sample-rp")
+	t.Setenv("IDENTITY_SEED_PUBLIC_REDIRECT_URI", "http://localhost:3001/callback")
+	t.Setenv("IDENTITY_SEED_PUBLIC_POST_LOGOUT_REDIRECT_URI", "http://localhost:3001/logged-out")
+
+	cfg, err := FromEnv()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.SeedPublicPostLogout != "http://localhost:3001/logged-out" {
+		t.Fatalf("post_logout %q", cfg.SeedPublicPostLogout)
+	}
+}
+
 func TestFromEnvAdminToken(t *testing.T) {
 	t.Setenv("IDENTITY_DEV_GENERATE_KEYS", "true")
 	t.Setenv("IDENTITY_STORE", "memory")

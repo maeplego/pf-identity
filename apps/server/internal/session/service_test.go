@@ -24,6 +24,10 @@ func TestStartLookupEnd(t *testing.T) {
 	if err != nil || uid != "user-1" {
 		t.Fatalf("lookup %q %v", uid, err)
 	}
+	sess, err := svc.LookupSession(context.Background(), plain)
+	if err != nil || sess.SID == "" || sess.UserID != "user-1" {
+		t.Fatalf("lookup session %+v %v", sess, err)
+	}
 	if err := svc.End(context.Background(), plain); err != nil {
 		t.Fatal(err)
 	}

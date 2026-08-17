@@ -1,0 +1,18 @@
+{{define "content"}}
+<h1>ログアウトしています</h1>
+<p>接続していたアプリへ通知しています。</p>
+{{range .IFrames}}
+<iframe src="{{.}}" title="" style="width:0;height:0;border:0;position:absolute"></iframe>
+{{end}}
+{{if .ContinueURL}}
+<p><a id="continue" href="{{.ContinueURL}}">続行</a></p>
+<script>
+setTimeout(function () {
+  var a = document.getElementById("continue");
+  if (a && a.href) { location.replace(a.href); }
+}, 1000);
+</script>
+{{else}}
+<p><a href="/login">ログインへ</a></p>
+{{end}}
+{{end}}

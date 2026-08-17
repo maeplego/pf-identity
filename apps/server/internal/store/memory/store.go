@@ -24,6 +24,7 @@ type Store struct {
 	access   map[string]domain.AccessToken
 	consent  map[string]domain.Consent
 	audits   []domain.AuditEvent
+	sidRP    map[string]map[string]struct{} // sid -> client IDs
 }
 
 // NewStore returns an empty store.
@@ -38,6 +39,7 @@ func NewStore() *Store {
 		access:   map[string]domain.AccessToken{},
 		consent:  map[string]domain.Consent{},
 		audits:   []domain.AuditEvent{},
+		sidRP:    map[string]map[string]struct{}{},
 	}
 }
 
@@ -117,8 +119,36 @@ func (s *Store) GetSession(_ context.Context, tokenHash string) (domain.Session,
 func (s *Store) DeleteSession(_ context.Context, tokenHash string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if sess, ok := s.sessions[tokenHash]; ok && sess.SID != "" {
+		delete(s.sidRP, sess.SID)
+	}
 	delete(s.sessions, tokenHash)
 	return nil
+}
+
+func (s *Store) AddSessionClient(_ context.Context, sid, clientID string) error {
+	if sid == "" || clientID == "" {
+		return nil
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.sidRP[sid] == nil {
+		s.sidRP[sid] = map[string]struct{}{}
+	}
+	s.sidRP[sid][clientID] = struct{}{}
+	return nil
+}
+
+func (s *Store) ListSessionClients(_ context.Context, sid string) ([]string, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	set := s.sidRP[sid]
+	out := make([]string, 0, len(set))
+	for id := range set {
+		out = append(out, id)
+	}
+	sort.Strings(out)
+	return out, nil
 }
 
 func (s *Store) CreateClient(_ context.Context, c domain.Client) error {
@@ -152,15 +182,17 @@ func (s *Store) ListClients(_ context.Context) ([]domain.Client, error) {
 	return out, nil
 }
 
-func (s *Store) UpdateClient(_ context.Context, id, name string, redirectURIs []string) error {
+func (s *Store) UpdateClient(_ context.Context, id string, patch domain.ClientPatch) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	c, ok := s.clients[id]
 	if !ok {
 		return domain.ErrNotFound
 	}
-	c.Name = name
-	c.RedirectURIs = append([]string{}, redirectURIs...)
+	c.Name = patch.Name
+	c.RedirectURIs = append([]string{}, patch.RedirectURIs...)
+	c.PostLogoutRedirectURIs = append([]string{}, patch.PostLogoutRedirectURIs...)
+	c.FrontChannelLogoutURI = patch.FrontChannelLogoutURI
 	s.clients[id] = c
 	return nil
 }

@@ -5,6 +5,7 @@ P01 の接続確認用 Relying Party です。**本番アプリではありま�
 - `/login` で `state` / `nonce` / PKCE S256 を付けて IdP の `/authorize` へ送る
 - `/callback` で認可コードを **このサーバーから** `/token` に渡す（ブラウザから token を叩かない）
 - ID Token は JWKS で検証し、保存していた `nonce` と照合する
+- ログアウトは IdP の `/end-session` に `id_token_hint` を付け、登録済み `post_logout_redirect_uri` へ戻る
 
 ## 起動
 

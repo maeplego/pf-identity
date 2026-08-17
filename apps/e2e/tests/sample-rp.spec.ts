@@ -16,6 +16,8 @@ test("sample-rp login shows UserInfo then logout", async ({ page }) => {
   await expect(page.getByTestId("userinfo")).toContainText(email);
   await page.getByTestId("logout").click();
   await expect(page.getByTestId("login-link")).toBeVisible();
+  await page.getByTestId("login-link").click();
+  await expect(page.getByRole("heading", { name: "ログイン" })).toBeVisible();
 });
 
 test("altered redirect_uri is rejected at the IdP", async ({ page }) => {

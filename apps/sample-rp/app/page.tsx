@@ -1,5 +1,6 @@
 import { readCookie } from "../lib/cookies";
 import { internalBase } from "../lib/env";
+import { isRevoked } from "../lib/sids";
 
 export default async function Home({
   searchParams,
@@ -7,7 +8,8 @@ export default async function Home({
   searchParams: Promise<{ error?: string }>;
 }) {
   const q = await searchParams;
-  const access = await readCookie("rp_access");
+  const sid = await readCookie("rp_sid");
+  const access = isRevoked(sid) ? undefined : await readCookie("rp_access");
   let userinfo: Record<string, unknown> | null = null;
   let userinfoError = "";
   if (access) {
