@@ -39,6 +39,9 @@ type Config struct {
 	SeedDemoRPBRedirect    string
 	SeedDemoRPBPostLogout  string
 	AdminToken             string
+	SeedDemoEmail          string
+	SeedDemoPassword       string
+	SeedDemoName           string
 }
 
 // FromEnv reads IDENTITY_* variables. Missing optional values use conservative locals.
@@ -60,6 +63,9 @@ func FromEnv() (Config, error) {
 		SeedDemoRPBRedirect:  strings.TrimSpace(os.Getenv("IDENTITY_SEED_DEMO_RP_B_REDIRECT_URI")),
 		SeedDemoRPBPostLogout: strings.TrimSpace(os.Getenv("IDENTITY_SEED_DEMO_RP_B_POST_LOGOUT_REDIRECT_URI")),
 		AdminToken:           strings.TrimSpace(os.Getenv("IDENTITY_ADMIN_TOKEN")),
+		SeedDemoEmail:        strings.TrimSpace(os.Getenv("IDENTITY_SEED_DEMO_EMAIL")),
+		SeedDemoPassword:     os.Getenv("IDENTITY_SEED_DEMO_PASSWORD"),
+		SeedDemoName:         envOr("IDENTITY_SEED_DEMO_NAME", "Demo User"),
 	}
 
 	var err error

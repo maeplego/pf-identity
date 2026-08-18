@@ -119,3 +119,22 @@ func TestFromEnvAdminToken(t *testing.T) {
 		t.Fatalf("admin token %q", cfg.AdminToken)
 	}
 }
+
+func TestFromEnvSeedDemoUser(t *testing.T) {
+	t.Setenv("IDENTITY_DEV_GENERATE_KEYS", "true")
+	t.Setenv("IDENTITY_STORE", "memory")
+	t.Setenv("IDENTITY_SEED_DEMO_EMAIL", "demo@example.test")
+	t.Setenv("IDENTITY_SEED_DEMO_PASSWORD", "demo-pass-change-me")
+	t.Setenv("IDENTITY_SEED_DEMO_NAME", "Demo User")
+
+	cfg, err := FromEnv()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.SeedDemoEmail != "demo@example.test" || cfg.SeedDemoName != "Demo User" {
+		t.Fatalf("%+v", cfg)
+	}
+	if cfg.SeedDemoPassword == "" {
+		t.Fatal("password should be loaded")
+	}
+}

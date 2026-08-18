@@ -7,6 +7,8 @@ import (
 	"log"
 	"strings"
 
+	"github.com/portfolio/pf-identity-server/internal/account"
+	"github.com/portfolio/pf-identity-server/internal/clock"
 	"github.com/portfolio/pf-identity-server/internal/config"
 	"github.com/portfolio/pf-identity-server/internal/domain"
 	"github.com/portfolio/pf-identity-server/internal/oauth"
@@ -37,6 +39,31 @@ func DemoRPB(ctx context.Context, clients domain.Clients, cfg config.Config) err
 		name = "Sample RP B"
 	}
 	return upsertPublicClient(ctx, clients, id, name, cfg.SeedDemoRPBRedirect, cfg.SeedDemoRPBPostLogout)
+}
+
+// DemoUser creates a local demo account when IDENTITY_SEED_DEMO_EMAIL is set.
+// Password is never logged. Existing email is treated as already seeded.
+func DemoUser(ctx context.Context, users domain.Users, cfg config.Config) error {
+	if cfg.SeedDemoEmail == "" {
+		return nil
+	}
+	if strings.TrimSpace(cfg.SeedDemoPassword) == "" {
+		return errors.New("IDENTITY_SEED_DEMO_PASSWORD is required when seeding a demo user")
+	}
+	acc := &account.Service{Users: users, Clock: clock.Real{}}
+	_, err := acc.Register(ctx, account.RegisterInput{
+		Email:    cfg.SeedDemoEmail,
+		Password: cfg.SeedDemoPassword,
+		Name:     cfg.SeedDemoName,
+	})
+	if err == nil {
+		log.Printf("seeded demo user email=%s (learning demo, not a real person)", strings.ToLower(strings.TrimSpace(cfg.SeedDemoEmail)))
+		return nil
+	}
+	if errors.Is(err, domain.ErrConflict) {
+		return nil
+	}
+	return err
 }
 
 func upsertPublicClient(ctx context.Context, clients domain.Clients, id, name, redirect, postLogout string) error {

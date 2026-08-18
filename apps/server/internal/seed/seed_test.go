@@ -104,3 +104,40 @@ func TestDemoRPBSkippedWhenUnset(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestDemoUserInsertsOnce(t *testing.T) {
+	store := memory.NewStore()
+	cfg := config.Config{
+		SeedDemoEmail:    "demo@example.test",
+		SeedDemoPassword: "demo-pass-change-me",
+		SeedDemoName:     "Demo User",
+	}
+	if err := DemoUser(context.Background(), store, cfg); err != nil {
+		t.Fatal(err)
+	}
+	if err := DemoUser(context.Background(), store, cfg); err != nil {
+		t.Fatal(err)
+	}
+	u, err := store.GetByEmail(context.Background(), "demo@example.test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if u.Name != "Demo User" {
+		t.Fatalf("name %q", u.Name)
+	}
+}
+
+func TestDemoUserRequiresPassword(t *testing.T) {
+	store := memory.NewStore()
+	err := DemoUser(context.Background(), store, config.Config{SeedDemoEmail: "demo@example.test"})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestDemoUserSkippedWhenUnset(t *testing.T) {
+	store := memory.NewStore()
+	if err := DemoUser(context.Background(), store, config.Config{}); err != nil {
+		t.Fatal(err)
+	}
+}
