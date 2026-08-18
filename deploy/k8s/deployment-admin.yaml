@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: admin
+  labels:
+    app: admin
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: admin
+  template:
+    metadata:
+      labels:
+        app: admin
+    spec:
+      containers:
+        - name: admin
+          image: pf-identity-admin:latest
+          ports:
+            - containerPort: 3002
+          env:
+            - name: IDENTITY_API_BASE
+              value: http://idp.p01.svc.cluster.local:8080
+            - name: IDENTITY_ADMIN_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: p01-secrets
+                  key: IDENTITY_ADMIN_TOKEN
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3002
+            initialDelaySeconds: 10
+            periodSeconds: 5

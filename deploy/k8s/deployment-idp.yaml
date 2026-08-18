@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: idp
+  labels:
+    app: idp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: idp
+  template:
+    metadata:
+      labels:
+        app: idp
+    spec:
+      containers:
+        - name: idp
+          image: pf-identity-idp:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: IDENTITY_HTTP_ADDR
+              value: :8080
+            - name: IDENTITY_COOKIE_SECURE
+              value: "false"
+            - name: IDENTITY_DEV_GENERATE_KEYS
+              value: "true"
+            - name: IDENTITY_STORE
+              value: postgres
+            - name: IDENTITY_ADMIN_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: p01-secrets
+                  key: IDENTITY_ADMIN_TOKEN
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 10
