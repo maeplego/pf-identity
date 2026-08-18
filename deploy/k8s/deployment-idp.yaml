@@ -35,7 +35,7 @@ spec:
                   key: IDENTITY_ADMIN_TOKEN
           readinessProbe:
             httpGet:
-              path: /ready
+              path: /health
               port: 8080
             initialDelaySeconds: 5
             periodSeconds: 5
