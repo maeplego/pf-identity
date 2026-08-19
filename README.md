@@ -2,7 +2,7 @@
 
 P01 の Identity Provider 製品リポジトリです。**本番認証基盤の置き換えではありません。**
 
-デプロイ単位（server / admin / sample-rp）はディレクトリで分けますが、Git は 1 本です。設計文書はワークスペース側の `project/portfolio-plan/identity-platform/DESIGN.md` にあります。
+デプロイ単位（server / admin / sample-rp）はディレクトリで分けますが、Git は 1 本です。設計文書はワークスペース側の `project/portfolio-plan/identity-platform/DESIGN.md` と `docs/` にあります。
 
 ```
 apps/server/    Authorization Server (Go)
