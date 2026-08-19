@@ -35,7 +35,13 @@ cd apps/server
 go test ./...
 ```
 
-Postgres 向けのテストは、接続先が無いときは skip します。ブラウザ e2e は `apps/e2e` の README を見てください。同じ認可コードを二回使う拒否は `go test` が正です。
+Postgres 向けのテストは、接続先が無いときは skip します。ブラウザ e2e は `apps/e2e` です（`npx playwright test`。GitHub では `workflow_dispatch`）。同じ認可コードを二回使う拒否は `go test` が正です。
+
+Compose 起動後のヘルス:
+
+```powershell
+node scripts/compose-smoke.mjs http://localhost:8080/health
+```
 
 ## 他サービスから接続する
 
