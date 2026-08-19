@@ -15,6 +15,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: apps/server/go.mod
+          check-latest: true
           cache-dependency-path: apps/server/go.sum
       - uses: actions/setup-node@v4
         with:
