@@ -1,11 +1,5 @@
-# P01 Kubernetes manifests
+# Kubernetes マニフェスト（P01）
 
-`pf-cloud-k8s` の `portfolio-integration` overlay から参照される IdP / admin の Deployment です。
+連携デモ用の IdP / admin です。このフォルダだけを apply しないでください。起動は [pf-cloud-k8s](https://github.com/maeplego/pf-cloud-k8s) からです。イメージ tag は overlay が上書きします。
 
-```powershell
-# 単体では apply しない。連携デモは pf-cloud-k8s から:
-cd ..\..\pf-cloud-k8s
-.\scripts\up.ps1
-```
-
-イメージ tag は overlay の `images:` で上書きします（既定 `pf-identity-*:latest`）。
+単体デモは `deploy/compose.yaml` です。

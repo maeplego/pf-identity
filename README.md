@@ -1,61 +1,52 @@
 # pf-identity
 
-P01 の Identity Provider 製品リポジトリです。**本番認証基盤の置き換えではありません。**
+学習用の OpenID Connect Identity Provider です。認可コード + PKCE、同意画面、トークン発行、JWKS、ログアウト連動までを実装しています。**本番の認証基盤の置き換えではありません。**
 
-デプロイ単位（server / admin / sample-rp）はディレクトリで分けますが、Git は 1 本です。設計文書はワークスペース側の `project/portfolio-plan/identity-platform/DESIGN.md` と `docs/` にあります。
+| ディレクトリ | 役割 |
+| --- | --- |
+| `apps/server` | 認可サーバー（Go） |
+| `apps/admin` | クライアント登録とユーザー無効化 |
+| `apps/sample-rp` | 接続確認用の Relying Party（Next.js） |
+| `apps/e2e` | ブラウザテスト（Playwright） |
+| `deploy/` | ローカル Docker Compose |
 
-```
-apps/server/    Authorization Server (Go)
-apps/admin/     クライアント CRUD・ユーザー無効化・監査ログ
-apps/sample-rp  接続確認用 RP（Next.js）
-apps/e2e/       Playwright（ログイン、redirect 拒否、管理画面）
-deploy/         ローカル Compose
-```
+メール検証は入れていません。パスワード再設定などのアカウント復旧は弱いです。
 
-メール検証は MVP では省略しています。そのためパスワード再設定などのアカウント復旧は弱いです。
-
-## 開発（ホストで個別起動）
-
-```powershell
-cd apps/server
-$env:IDENTITY_DEV_GENERATE_KEYS = "true"
-$env:IDENTITY_STORE = "memory"
-$env:IDENTITY_ADMIN_TOKEN = "change-me-locally"
-$env:IDENTITY_SEED_PUBLIC_CLIENT_ID = "sample-rp"
-$env:IDENTITY_SEED_PUBLIC_REDIRECT_URI = "http://localhost:3001/callback"
-go test ./...
-go run ./cmd/server
-```
-
-- sample-rp: `apps/sample-rp` で `npm install` のあと `npm run dev`（http://localhost:3001）
-- admin: `apps/admin` で `.env.example` を `.env.local` にコピーし `npm run dev`（http://localhost:3002）
-
-## Compose
+## 起動（Compose）
 
 ```powershell
 copy deploy/.env.example deploy/.env
 docker compose -f deploy/compose.yaml --env-file deploy/.env up --build
 ```
 
-- IdP: http://localhost:8080
-- sample-rp: http://localhost:3001
-- sample-rp-b: http://localhost:3003（同じ IdP セッションでログインし、片方から logout するともう片方も落ちる）
-- admin: http://localhost:3002
+| URL | 用途 |
+| --- | --- |
+| http://localhost:8080 | Identity Provider |
+| http://localhost:3001 | sample-rp（ログイン確認） |
+| http://localhost:3003 | 2 つ目の RP（片方でログアウトすると、もう片方も落ちる） |
+| http://localhost:3002 | 管理画面 |
 
-Postgres ストアのテストは `IDENTITY_TEST_DATABASE_URL` か Docker が必要です。どちらも無いときはそのパッケージだけ Skip します。
+デモユーザーは Compose が用意します。本番アカウントではありません。Discovery は `http://localhost:8080/.well-known/openid-configuration` です。
 
-ブラウザ e2e は `apps/e2e`（手順はそちらの README）。同じ code の二回交換は `go test` 側が正本です。
+## テスト
 
-## 他プロジェクトから接続する
+```powershell
+cd apps/server
+go test ./...
+```
 
-各 RP はパスワードを持たず、この IdP の認可コード + PKCE S256 だけを使います。ユーザーの主キーは email ではなく ID Token の `sub` です。
+Postgres 向けのテストは、接続先が無いときは skip します。ブラウザ e2e は `apps/e2e` の README を見てください。同じ認可コードを二回使う拒否は `go test` が正です。
 
-1. 管理 UI（http://localhost:3002）でクライアントを作る。`redirect_uri` と `post_logout_redirect_uri` はクエリまで含めて **完全一致** で登録する（localhost のポート違いも別エントリ）。他 RP のログアウト連動が必要なら `frontchannel_logout_uri` と `backchannel_logout_uri` も登録する。
-2. confidential なら `client_secret` は作成時（または rotate）に一度だけ表示される。リポジトリに書かない。
-3. public（PWA / モバイル）は secret を持たない。PKCE は必須。
-4. RP は Discovery `http://localhost:8080/.well-known/openid-configuration` を読んでよい。
-5. `/token` はサーバー側で交換する。ブラウザからの CORS は付けていない。
-6. 発行クレーム: `iss`, `sub`, `aud`, `exp`, `iat`, `nonce`, `sid`、および scope に応じた `email` / `email_verified` / `name`。未検証メールは `email_verified=false`。
-7. `state` と `nonce` は RP が発行し、コールバックと ID Token で照合する。実装の見本は `apps/sample-rp`。
+## 他サービスから接続する
 
-スコープ初期セットは `openid`, `profile`, `email`, `offline_access`。アプリ固有 scope は Consent が崩れるので、利用側が必要になったら IdP に足す。
+アプリ側はパスワードを持ちません。認可コード + PKCE（S256）だけを使います。ユーザーの主キーはメールではなく ID Token の `sub` です。
+
+1. 管理画面でクライアントを作る。`redirect_uri` と `post_logout_redirect_uri` は、クエリまで含めて登録値と完全一致させます。
+2. 秘密のあるクライアントは、作成時（または rotate 時）に一度だけ `client_secret` を表示します。Git に書かないでください。
+3. 公開クライアント（ブラウザ / モバイル）は secret を持ちません。PKCE は必須です。
+4. `/token` はサーバー側で交換します。ブラウザからの CORS は付けていません。
+5. `state` と `nonce` は RP が発行し、コールバックと ID Token で照合します。見本は `apps/sample-rp` です。
+
+初期スコープは `openid` / `profile` / `email` / `offline_access` です。
+
+設計の詳細は [portfolio-plan](https://github.com/maeplego/portfolio-plan) の `portfolio-plan/identity-platform/docs/` です。
