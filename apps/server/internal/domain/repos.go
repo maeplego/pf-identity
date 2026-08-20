@@ -74,6 +74,7 @@ type Organizations interface {
 	ListOrganizationMembers(ctx context.Context, orgID string) ([]OrganizationMembership, error)
 	GetOrganizationMembership(ctx context.Context, orgID, userID string) (OrganizationMembership, error)
 	SetSessionActiveOrg(ctx context.Context, tokenHash, orgID string) error
+	SetSessionActiveOrgBySID(ctx context.Context, sid, orgID string) error
 }
 
 // AuditPage is one newest-first window. Next is empty when there is no older page.

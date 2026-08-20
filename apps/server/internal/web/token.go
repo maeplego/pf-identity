@@ -103,11 +103,12 @@ func (s *Server) writeTokenResponse(w http.ResponseWriter, r *http.Request, clie
 		return
 	}
 	if err := s.Repos.PutAccess(r.Context(), domain.AccessToken{
-		Hash:      oauth.HashToken(accessPlain),
-		ClientID:  client.ID,
-		UserID:    userID,
-		Scopes:    scopes,
-		ExpiresAt: s.now().Add(s.Cfg.AccessTTL),
+		Hash:       oauth.HashToken(accessPlain),
+		ClientID:   client.ID,
+		UserID:     userID,
+		Scopes:     scopes,
+		SessionSID: sid,
+		ExpiresAt:  s.now().Add(s.Cfg.AccessTTL),
 	}); err != nil {
 		clientError(w, http.StatusInternalServerError, "server_error", "token")
 		return
@@ -225,7 +226,7 @@ func (s *Server) handleUserInfo(w http.ResponseWriter, r *http.Request) {
 	if oauth.Contains(tok.Scopes, "profile") {
 		body["name"] = user.Name
 	}
-	s.appendOrgClaims(r.Context(), body, user.ID, "", tok.Scopes)
+	s.appendOrgClaims(r.Context(), body, user.ID, tok.SessionSID, tok.Scopes)
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(body)
 }

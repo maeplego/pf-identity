@@ -353,14 +353,15 @@ func (s *Store) RevokeFamily(ctx context.Context, familyID string) error {
 
 func (s *Store) PutAccess(ctx context.Context, t domain.AccessToken) error {
 	_, err := s.pool.Exec(ctx, `
-		INSERT INTO access_tokens (hash, client_id, user_id, scopes, expires_at)
-		VALUES ($1, $2, $3, $4, $5)
+		INSERT INTO access_tokens (hash, client_id, user_id, scopes, session_sid, expires_at)
+		VALUES ($1, $2, $3, $4, $5, $6)
 		ON CONFLICT (hash) DO UPDATE SET
 			client_id = EXCLUDED.client_id,
 			user_id = EXCLUDED.user_id,
 			scopes = EXCLUDED.scopes,
+			session_sid = EXCLUDED.session_sid,
 			expires_at = EXCLUDED.expires_at`,
-		t.Hash, t.ClientID, t.UserID, t.Scopes, t.ExpiresAt.UTC(),
+		t.Hash, t.ClientID, t.UserID, t.Scopes, t.SessionSID, t.ExpiresAt.UTC(),
 	)
 	return mapErr(err)
 }
@@ -368,9 +369,9 @@ func (s *Store) PutAccess(ctx context.Context, t domain.AccessToken) error {
 func (s *Store) GetAccess(ctx context.Context, hash string) (domain.AccessToken, error) {
 	var t domain.AccessToken
 	err := s.pool.QueryRow(ctx, `
-		SELECT hash, client_id, user_id, scopes, expires_at
+		SELECT hash, client_id, user_id, scopes, COALESCE(session_sid, ''), expires_at
 		FROM access_tokens WHERE hash = $1`, hash,
-	).Scan(&t.Hash, &t.ClientID, &t.UserID, &t.Scopes, &t.ExpiresAt)
+	).Scan(&t.Hash, &t.ClientID, &t.UserID, &t.Scopes, &t.SessionSID, &t.ExpiresAt)
 	if err != nil {
 		return domain.AccessToken{}, mapErr(err)
 	}

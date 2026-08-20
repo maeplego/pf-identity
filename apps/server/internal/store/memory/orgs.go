@@ -95,3 +95,19 @@ func (s *Store) SetSessionActiveOrg(_ context.Context, tokenHash, orgID string) 
 	s.sessions[tokenHash] = sess
 	return nil
 }
+
+func (s *Store) SetSessionActiveOrgBySID(_ context.Context, sid, orgID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if sid == "" {
+		return domain.ErrInvalid
+	}
+	for hash, sess := range s.sessions {
+		if sess.SID == sid {
+			sess.ActiveOrgID = orgID
+			s.sessions[hash] = sess
+			return nil
+		}
+	}
+	return domain.ErrNotFound
+}

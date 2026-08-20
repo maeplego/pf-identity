@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"strings"
 
 	"github.com/portfolio/pf-identity-server/internal/domain"
 )
@@ -94,6 +95,21 @@ func (s *Store) GetOrganizationMembership(ctx context.Context, orgID, userID str
 func (s *Store) SetSessionActiveOrg(ctx context.Context, tokenHash, orgID string) error {
 	tag, err := s.pool.Exec(ctx, `
 		UPDATE sessions SET active_org_id = $2 WHERE token_hash = $1`, tokenHash, orgID)
+	if err != nil {
+		return mapErr(err)
+	}
+	if tag.RowsAffected() == 0 {
+		return domain.ErrNotFound
+	}
+	return nil
+}
+
+func (s *Store) SetSessionActiveOrgBySID(ctx context.Context, sid, orgID string) error {
+	if strings.TrimSpace(sid) == "" {
+		return domain.ErrInvalid
+	}
+	tag, err := s.pool.Exec(ctx, `
+		UPDATE sessions SET active_org_id = $2 WHERE sid = $1`, sid, orgID)
 	if err != nil {
 		return mapErr(err)
 	}

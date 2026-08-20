@@ -134,6 +134,46 @@ func (s *Server) handleSetActiveOrg(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (s *Server) handleSetActiveOrgAPI(w http.ResponseWriter, r *http.Request) {
+	u, ok := s.bearerUser(r)
+	if !ok {
+		w.Header().Set("WWW-Authenticate", "Bearer")
+		clientError(w, http.StatusUnauthorized, "invalid_token", "bearer required")
+		return
+	}
+	raw := bearer(r)
+	tok, err := s.Repos.GetAccess(r.Context(), oauth.HashToken(raw))
+	if err != nil || !tok.ExpiresAt.After(s.now()) {
+		clientError(w, http.StatusUnauthorized, "invalid_token", "access token invalid")
+		return
+	}
+	var body struct {
+		OrgID string `json:"orgId"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		clientError(w, http.StatusBadRequest, "invalid_request", "json")
+		return
+	}
+	orgID := strings.TrimSpace(body.OrgID)
+	if orgID == "" {
+		clientError(w, http.StatusBadRequest, "invalid_request", "orgId")
+		return
+	}
+	if tok.SessionSID == "" {
+		clientError(w, http.StatusBadRequest, "invalid_request", "session missing on token")
+		return
+	}
+	if err := s.orgService().SetActiveOrgBySID(r.Context(), u.User.ID, tok.SessionSID, orgID); err != nil {
+		if err == domain.ErrForbidden {
+			clientError(w, http.StatusForbidden, "access_denied", "not a member")
+			return
+		}
+		clientError(w, http.StatusBadRequest, "invalid_request", "org")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (s *Server) appendOrgClaims(ctx context.Context, body map[string]any, userID, sessionSID string, scopes []string) {
 	if !oauth.Contains(scopes, "org") {
 		return

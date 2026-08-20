@@ -63,9 +63,9 @@ const (
 
 // Organization is a tenant boundary shared across relying parties.
 type Organization struct {
-	ID        string
-	Name      string
-	CreatedAt time.Time
+	ID        string    `json:"id"`
+	Name      string    `json:"name"`
+	CreatedAt time.Time `json:"createdAt"`
 }
 
 // OrganizationMembership binds a global user to an organization with a tenant role.
@@ -120,11 +120,12 @@ type RefreshToken struct {
 
 // AccessToken is opaque. Resource servers call UserInfo or introspect later.
 type AccessToken struct {
-	Hash      string
-	ClientID  string
-	UserID    string
-	Scopes    []string
-	ExpiresAt time.Time
+	Hash       string
+	ClientID   string
+	UserID     string
+	Scopes     []string
+	SessionSID string
+	ExpiresAt  time.Time
 }
 
 // Consent records that a user allowed a client a set of scopes.

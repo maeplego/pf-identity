@@ -143,6 +143,7 @@ func NewServer(cfg config.Config, acc *account.Service, sess *session.Service, r
 	s.mux.HandleFunc("GET /v1/organizations", s.handleListOrganizations)
 	s.mux.HandleFunc("GET /v1/organizations/{id}/members", s.handleListOrganizationMembers)
 	s.mux.HandleFunc("PUT /account/active-org", s.handleSetActiveOrg)
+	s.mux.HandleFunc("PUT /v1/active-org", s.handleSetActiveOrgAPI)
 	return s, nil
 }
 

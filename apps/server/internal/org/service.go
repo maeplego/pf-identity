@@ -63,12 +63,27 @@ func (s *Service) ListMembers(ctx context.Context, actorID, orgID string) ([]dom
 	return out, nil
 }
 
-// SetActiveOrg stores the user's active tenant on their browser session.
+// SetActiveOrg stores the user's active tenant on their browser session (cookie path).
 func (s *Service) SetActiveOrg(ctx context.Context, userID, sessionTokenHash, orgID string) error {
 	if _, err := s.Repos.GetOrganizationMembership(ctx, orgID, userID); err != nil {
 		return domain.ErrForbidden
 	}
 	return s.Repos.SetSessionActiveOrg(ctx, sessionTokenHash, orgID)
+}
+
+// SetActiveOrgBySID stores active org for an OP session identified by sid (Bearer / refresh path).
+func (s *Service) SetActiveOrgBySID(ctx context.Context, userID, sid, orgID string) error {
+	if _, err := s.Repos.GetOrganizationMembership(ctx, orgID, userID); err != nil {
+		return domain.ErrForbidden
+	}
+	sess, err := s.Repos.GetSessionBySID(ctx, sid)
+	if err != nil {
+		return domain.ErrNotFound
+	}
+	if sess.UserID != userID {
+		return domain.ErrForbidden
+	}
+	return s.Repos.SetSessionActiveOrgBySID(ctx, sid, orgID)
 }
 
 // MembershipViews lists org memberships with names for userinfo.
