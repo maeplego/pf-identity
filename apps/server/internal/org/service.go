@@ -40,12 +40,27 @@ func (s *Service) ListForUser(ctx context.Context, userID string) ([]domain.Orga
 	return s.Repos.ListOrganizationsForUser(ctx, userID)
 }
 
-// ListMembers returns org members when actor is a member.
-func (s *Service) ListMembers(ctx context.Context, actorID, orgID string) ([]domain.OrganizationMembership, error) {
+// ListMembers returns org members (with email/name) when actor is a member.
+func (s *Service) ListMembers(ctx context.Context, actorID, orgID string) ([]domain.OrgMemberDetail, error) {
 	if _, err := s.Repos.GetOrganizationMembership(ctx, orgID, actorID); err != nil {
 		return nil, domain.ErrForbidden
 	}
-	return s.Repos.ListOrganizationMembers(ctx, orgID)
+	members, err := s.Repos.ListOrganizationMembers(ctx, orgID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]domain.OrgMemberDetail, 0, len(members))
+	for _, m := range members {
+		detail := domain.OrgMemberDetail{
+			UserID: m.UserID, Role: string(m.Role), JoinedAt: m.JoinedAt,
+		}
+		if u, err := s.Repos.GetByID(ctx, m.UserID); err == nil {
+			detail.Email = u.Email
+			detail.Name = u.Name
+		}
+		out = append(out, detail)
+	}
+	return out, nil
 }
 
 // SetActiveOrg stores the user's active tenant on their browser session.

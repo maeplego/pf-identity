@@ -100,7 +100,7 @@ func (s *Server) handleListOrganizationMembers(w http.ResponseWriter, r *http.Re
 		return
 	}
 	if members == nil {
-		members = []domain.OrganizationMembership{}
+		members = []domain.OrgMemberDetail{}
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"members": members})
 }

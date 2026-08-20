@@ -47,6 +47,26 @@ func TestOrganizationAPIAndOrgClaims(t *testing.T) {
 		t.Fatalf("list orgs: %d", rr.Code)
 	}
 
+	req = httptest.NewRequest(http.MethodGet, "/v1/organizations/"+created.ID+"/members", nil)
+	req.Header.Set("Authorization", "Bearer "+access)
+	rr = httptest.NewRecorder()
+	srv.ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("list members: %d %s", rr.Code, rr.Body.String())
+	}
+	var memberPayload struct {
+		Members []domain.OrgMemberDetail `json:"members"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&memberPayload); err != nil {
+		t.Fatal(err)
+	}
+	if len(memberPayload.Members) != 1 || memberPayload.Members[0].UserID != user.ID {
+		t.Fatalf("members %+v", memberPayload.Members)
+	}
+	if memberPayload.Members[0].Email != "owner@example.com" || memberPayload.Members[0].Name != "Owner" {
+		t.Fatalf("member profile %+v", memberPayload.Members[0])
+	}
+
 	primary, all, err := org.PrimaryOrg(t.Context(), repos, user.ID, "")
 	if err != nil || len(all) != 1 || primary.OrgID != created.ID {
 		t.Fatalf("primary %+v all=%d err=%v", primary, len(all), err)

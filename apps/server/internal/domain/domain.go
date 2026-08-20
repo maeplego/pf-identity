@@ -70,10 +70,19 @@ type Organization struct {
 
 // OrganizationMembership binds a global user to an organization with a tenant role.
 type OrganizationMembership struct {
-	OrgID     string
-	UserID    string
-	Role      OrgRole
-	JoinedAt  time.Time
+	OrgID    string
+	UserID   string
+	Role     OrgRole
+	JoinedAt time.Time
+}
+
+// OrgMemberDetail is the public org-member list item for relying parties (invite UX).
+type OrgMemberDetail struct {
+	UserID   string    `json:"userId"`
+	Role     string    `json:"role"`
+	Email    string    `json:"email,omitempty"`
+	Name     string    `json:"name,omitempty"`
+	JoinedAt time.Time `json:"joinedAt"`
 }
 
 // OrgMembershipView is membership with org metadata for userinfo.
