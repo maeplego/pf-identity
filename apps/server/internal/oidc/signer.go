@@ -90,6 +90,8 @@ type IDTokenInput struct {
 	Name     string
 	Verified bool
 	SID      string
+	OrgID    string
+	OrgRole  string
 	Now      time.Time
 	TTL      time.Duration
 }
@@ -108,6 +110,12 @@ func (s *Signer) SignIDToken(in IDTokenInput) (string, error) {
 		Claim("name", in.Name)
 	if in.SID != "" {
 		b = b.Claim("sid", in.SID)
+	}
+	if in.OrgID != "" {
+		b = b.Claim("org_id", in.OrgID)
+	}
+	if in.OrgRole != "" {
+		b = b.Claim("org_role", in.OrgRole)
 	}
 	tok, err := b.Build()
 	if err != nil {

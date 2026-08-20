@@ -9,4 +9,8 @@ var (
 	ErrConflict = errors.New("conflict")
 	// ErrUsed is a single-use token already consumed.
 	ErrUsed = errors.New("already used")
+	// ErrInvalid is malformed input.
+	ErrInvalid = errors.New("invalid")
+	// ErrForbidden is authorization failure.
+	ErrForbidden = errors.New("forbidden")
 )

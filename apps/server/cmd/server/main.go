@@ -49,6 +49,9 @@ func main() {
 	if err := seed.DemoUser(context.Background(), repos, cfg); err != nil {
 		log.Fatal(err)
 	}
+	if err := seed.DemoOrganization(context.Background(), repos, cfg); err != nil {
+		log.Fatal(err)
+	}
 	clk := clock.Real{}
 	acc := &account.Service{Users: repos, Clock: clk}
 	sess := &session.Service{Sessions: repos, Clock: clk, TTL: cfg.SessionTTL}

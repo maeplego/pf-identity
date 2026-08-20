@@ -25,6 +25,9 @@ func TestParseRedirectURI(t *testing.T) {
 	if _, err := ParseRedirectURI("https://rp.example/cb"); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := ParseRedirectURI("pfhabit://callback"); err != nil {
+		t.Fatal("native scheme", err)
+	}
 	if _, err := ParseRedirectURI("javascript:alert(1)"); err == nil {
 		t.Fatal("javascript scheme")
 	}

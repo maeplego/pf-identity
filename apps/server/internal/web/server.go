@@ -29,6 +29,7 @@ type pageData struct {
 	Email                 string
 	ClientName            string
 	Scopes                []string
+	ScopeViews            []ScopeView
 	RequestID             string
 	IDTokenHint           string
 	PostLogoutRedirectURI string
@@ -36,6 +37,32 @@ type pageData struct {
 	ClientID              string
 	IFrames               []string
 	ContinueURL           template.URL
+}
+
+type ScopeView struct {
+	ID    string
+	Label string
+}
+
+func scopeViews(scopes []string) []ScopeView {
+	out := make([]ScopeView, 0, len(scopes))
+	for _, id := range scopes {
+		label := id
+		switch id {
+		case "openid":
+			label = "ログイン識別（OpenID）"
+		case "profile":
+			label = "表示名などのプロフィール"
+		case "email":
+			label = "メールアドレス"
+		case "offline_access":
+			label = "再ログインなしで継続（リフレッシュ）"
+		case "org":
+			label = "所属組織（テナント）"
+		}
+		out = append(out, ScopeView{ID: id, Label: label})
+	}
+	return out
 }
 
 type pendingAuth struct {
@@ -112,6 +139,10 @@ func NewServer(cfg config.Config, acc *account.Service, sess *session.Service, r
 	s.mux.HandleFunc("GET /admin/api/users", s.handleAdminListUsers)
 	s.mux.HandleFunc("POST /admin/api/users/{id}/disabled", s.handleAdminSetDisabled)
 	s.mux.HandleFunc("GET /admin/api/audits", s.handleAdminListAudits)
+	s.mux.HandleFunc("POST /v1/organizations", s.handleCreateOrganization)
+	s.mux.HandleFunc("GET /v1/organizations", s.handleListOrganizations)
+	s.mux.HandleFunc("GET /v1/organizations/{id}/members", s.handleListOrganizationMembers)
+	s.mux.HandleFunc("PUT /account/active-org", s.handleSetActiveOrg)
 	return s, nil
 }
 

@@ -13,6 +13,7 @@ var allowed = map[string]struct{}{
 	"profile":        {},
 	"email":          {},
 	"offline_access": {},
+	"org":            {},
 }
 
 // NormalizeScopes splits a scope string, drops duplicates, and rejects unknown names.

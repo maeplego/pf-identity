@@ -7,11 +7,13 @@ import (
 	"errors"
 	"log"
 	"strings"
+	"time"
 
 	"github.com/portfolio/pf-identity-server/internal/account"
 	"github.com/portfolio/pf-identity-server/internal/clock"
 	"github.com/portfolio/pf-identity-server/internal/config"
 	"github.com/portfolio/pf-identity-server/internal/domain"
+	"github.com/portfolio/pf-identity-server/internal/id"
 	"github.com/portfolio/pf-identity-server/internal/oauth"
 )
 
@@ -102,6 +104,49 @@ func DemoUser(ctx context.Context, users domain.Users, cfg config.Config) error 
 	return err
 }
 
+// DemoOrganization ensures the seeded demo user belongs to a demo tenant.
+func DemoOrganization(ctx context.Context, repos domain.Repos, cfg config.Config) error {
+	if cfg.SeedDemoEmail == "" {
+		return nil
+	}
+	u, err := repos.GetByEmail(ctx, cfg.SeedDemoEmail)
+	if err != nil {
+		return nil
+	}
+	orgs, err := repos.ListOrganizationsForUser(ctx, u.ID)
+	if err != nil {
+		return err
+	}
+	if len(orgs) > 0 {
+		return nil
+	}
+	orgSvc := orgService{repos: repos}
+	o, err := orgSvc.create(ctx, u.ID, "Demo Organization")
+	if err != nil {
+		return err
+	}
+	log.Printf("seeded demo organization id=%s for user=%s", o.ID, u.ID)
+	return nil
+}
+
+type orgService struct {
+	repos domain.Repos
+}
+
+func (s orgService) create(ctx context.Context, actorID, name string) (domain.Organization, error) {
+	now := time.Now().UTC()
+	o := domain.Organization{ID: id.New(), Name: name, CreatedAt: now}
+	if err := s.repos.CreateOrganization(ctx, o); err != nil {
+		return domain.Organization{}, err
+	}
+	if err := s.repos.AddOrganizationMember(ctx, domain.OrganizationMembership{
+		OrgID: o.ID, UserID: actorID, Role: domain.OrgRoleOwner, JoinedAt: now,
+	}); err != nil {
+		return domain.Organization{}, err
+	}
+	return o, nil
+}
+
 func upsertPublicClient(ctx context.Context, clients domain.Clients, id, name, redirect, postLogout string) error {
 	if postLogout == "" {
 		var err error
@@ -167,10 +212,26 @@ func replaceCallbackPath(redirect, path string) (string, error) {
 	}
 	u.RawQuery = ""
 	u.Fragment = ""
+	path = strings.TrimPrefix(path, "/")
+	if u.Scheme == "http" || u.Scheme == "https" {
+		if strings.HasSuffix(u.Path, "/callback") {
+			u.Path = strings.TrimSuffix(u.Path, "/callback") + "/" + path
+		} else {
+			u.Path = "/" + path
+		}
+		return u.String(), nil
+	}
+	// Native scheme: pfhabit://callback -> pfhabit://logged-out
+	if u.Host != "" && u.Path == "" {
+		u.Host = path
+		return u.String(), nil
+	}
 	if strings.HasSuffix(u.Path, "/callback") {
-		u.Path = strings.TrimSuffix(u.Path, "/callback") + path
+		u.Path = strings.TrimSuffix(u.Path, "/callback") + "/" + path
+	} else if u.Path != "" {
+		u.Path = u.Path + "/" + path
 	} else {
-		u.Path = path
+		u.Path = "/" + path
 	}
 	return u.String(), nil
 }

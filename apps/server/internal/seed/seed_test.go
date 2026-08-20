@@ -118,6 +118,26 @@ func TestExtraClientsInsertsJSONList(t *testing.T) {
 	}
 }
 
+func TestExtraClientsNativeScheme(t *testing.T) {
+	store := memory.NewStore()
+	cfg := config.Config{
+		SeedExtraClientsJSON: `[{"id":"pf-habit-mobile","name":"Habit Mobile","redirectUri":"pfhabit://callback"}]`,
+	}
+	if err := ExtraClients(context.Background(), store, cfg); err != nil {
+		t.Fatal(err)
+	}
+	c, err := store.GetClient(context.Background(), "pf-habit-mobile")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.RedirectURIs[0] != "pfhabit://callback" {
+		t.Fatalf("redirect %+v", c.RedirectURIs)
+	}
+	if c.PostLogoutRedirectURIs[0] != "pfhabit://logged-out" {
+		t.Fatalf("post_logout %+v", c.PostLogoutRedirectURIs)
+	}
+}
+
 func TestExtraClientsSkippedWhenUnset(t *testing.T) {
 	if err := ExtraClients(context.Background(), memory.NewStore(), config.Config{}); err != nil {
 		t.Fatal(err)

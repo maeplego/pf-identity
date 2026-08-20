@@ -3,6 +3,7 @@ package oauth
 
 import (
 	"net/url"
+	"strings"
 )
 
 // RedirectURIExact reports whether requested matches a registered URI.
@@ -20,23 +21,39 @@ func RedirectURIExact(requested string, registered []string) bool {
 	return false
 }
 
-// ParseRedirectURI rejects empty and clearly non-absolute http(s) URIs.
-// Custom schemes are out of scope for this learning IdP (use claimed HTTPS for mobile).
+var blockedRedirectSchemes = map[string]struct{}{
+	"javascript": {},
+	"data":       {},
+	"file":       {},
+	"vbscript":   {},
+}
+
+// ParseRedirectURI rejects empty, relative, and dangerous URIs.
+// Web RPs use http(s); native/mobile clients may register custom schemes (e.g. pfhabit://callback).
 func ParseRedirectURI(raw string) (*url.URL, error) {
 	u, err := url.Parse(raw)
 	if err != nil {
 		return nil, err
 	}
-	if u.Scheme != "http" && u.Scheme != "https" {
+	if u.Scheme == "" {
 		return nil, errInvalidRedirect
 	}
-	if u.Host == "" {
-		return nil, errInvalidRedirect
-	}
-	// Fragments never reach the server; refusing them keeps the registered
-	// value identical to what /token will compare against.
 	if u.Fragment != "" {
 		return nil, errInvalidRedirect
 	}
-	return u, nil
+	if _, blocked := blockedRedirectSchemes[strings.ToLower(u.Scheme)]; blocked {
+		return nil, errInvalidRedirect
+	}
+	switch u.Scheme {
+	case "http", "https":
+		if u.Host == "" {
+			return nil, errInvalidRedirect
+		}
+		return u, nil
+	default:
+		if u.Host == "" && u.Path == "" && u.Opaque == "" {
+			return nil, errInvalidRedirect
+		}
+		return u, nil
+	}
 }

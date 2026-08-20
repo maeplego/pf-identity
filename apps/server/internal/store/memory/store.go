@@ -25,6 +25,8 @@ type Store struct {
 	consent  map[string]domain.Consent
 	audits   []domain.AuditEvent
 	sidRP    map[string]map[string]struct{} // sid -> client IDs
+	orgs     map[string]domain.Organization
+	orgMembers map[string]map[string]domain.OrganizationMembership // orgID -> userID
 }
 
 // NewStore returns an empty store.
@@ -38,8 +40,10 @@ func NewStore() *Store {
 		refresh:  map[string]domain.RefreshToken{},
 		access:   map[string]domain.AccessToken{},
 		consent:  map[string]domain.Consent{},
-		audits:   []domain.AuditEvent{},
-		sidRP:    map[string]map[string]struct{}{},
+		audits:     []domain.AuditEvent{},
+		sidRP:      map[string]map[string]struct{}{},
+		orgs:       map[string]domain.Organization{},
+		orgMembers: map[string]map[string]domain.OrganizationMembership{},
 	}
 }
 
@@ -114,6 +118,17 @@ func (s *Store) GetSession(_ context.Context, tokenHash string) (domain.Session,
 		return domain.Session{}, domain.ErrNotFound
 	}
 	return sess, nil
+}
+
+func (s *Store) GetSessionBySID(_ context.Context, sid string) (domain.Session, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for _, sess := range s.sessions {
+		if sess.SID == sid {
+			return sess, nil
+		}
+	}
+	return domain.Session{}, domain.ErrNotFound
 }
 
 func (s *Store) DeleteSession(_ context.Context, tokenHash string) error {

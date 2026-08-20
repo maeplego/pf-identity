@@ -43,3 +43,21 @@ export function rpLabel(): string {
   }
   return clientId();
 }
+
+// Browser-facing origin. Next.js in Compose listens on 0.0.0.0 so req.nextUrl.origin is unusable.
+export function publicOrigin(req: { headers: Headers; nextUrl: URL }): string {
+  const redirect = process.env.OIDC_REDIRECT_URI?.trim();
+  if (redirect) {
+    try {
+      return new URL(redirect).origin;
+    } catch {
+      // fall through
+    }
+  }
+  const host = req.headers.get("x-forwarded-host") || req.headers.get("host");
+  if (host && !host.startsWith("0.0.0.0")) {
+    const proto = req.headers.get("x-forwarded-proto") || "http";
+    return `${proto.split(",")[0].trim()}://${host.split(",")[0].trim()}`;
+  }
+  return "http://localhost:3001";
+}

@@ -8,6 +8,7 @@ import (
 	"github.com/portfolio/pf-identity-server/internal/domain"
 	"github.com/portfolio/pf-identity-server/internal/id"
 	"github.com/portfolio/pf-identity-server/internal/oauth"
+	"github.com/portfolio/pf-identity-server/internal/org"
 	"github.com/portfolio/pf-identity-server/internal/oidc"
 	"github.com/portfolio/pf-identity-server/internal/password"
 	"github.com/portfolio/pf-identity-server/internal/random"
@@ -111,7 +112,7 @@ func (s *Server) writeTokenResponse(w http.ResponseWriter, r *http.Request, clie
 		clientError(w, http.StatusInternalServerError, "server_error", "token")
 		return
 	}
-	idTok, err := s.Signer.SignIDToken(oidcIDToken(s, user, client.ID, nonce, sid))
+	idTok, err := s.Signer.SignIDToken(oidcIDToken(s, r, user, client.ID, nonce, sid, scopes))
 	if err != nil {
 		clientError(w, http.StatusInternalServerError, "server_error", "id_token")
 		return
@@ -152,8 +153,8 @@ func (s *Server) writeTokenResponse(w http.ResponseWriter, r *http.Request, clie
 	_ = json.NewEncoder(w).Encode(resp)
 }
 
-func oidcIDToken(s *Server, user domain.User, aud, nonce, sid string) oidc.IDTokenInput {
-	return oidc.IDTokenInput{
+func oidcIDToken(s *Server, r *http.Request, user domain.User, aud, nonce, sid string, scopes []string) oidc.IDTokenInput {
+	in := oidc.IDTokenInput{
 		Issuer:   s.Cfg.Issuer,
 		Subject:  user.ID,
 		Audience: aud,
@@ -165,6 +166,14 @@ func oidcIDToken(s *Server, user domain.User, aud, nonce, sid string) oidc.IDTok
 		Now:      s.now(),
 		TTL:      s.Cfg.AccessTTL,
 	}
+	if oauth.Contains(scopes, "org") {
+		primary, _, err := org.PrimaryOrg(r.Context(), s.Repos, user.ID, sid)
+		if err == nil {
+			in.OrgID = primary.OrgID
+			in.OrgRole = primary.Role
+		}
+	}
+	return in
 }
 
 func (s *Server) authenticateClient(r *http.Request) (domain.Client, error) {
@@ -216,6 +225,7 @@ func (s *Server) handleUserInfo(w http.ResponseWriter, r *http.Request) {
 	if oauth.Contains(tok.Scopes, "profile") {
 		body["name"] = user.Name
 	}
+	s.appendOrgClaims(r.Context(), body, user.ID, "", tok.Scopes)
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(body)
 }

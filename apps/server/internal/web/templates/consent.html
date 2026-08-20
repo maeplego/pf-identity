@@ -1,8 +1,8 @@
 {{define "content"}}
 <h1>権限の許可</h1>
 <p><strong>{{.ClientName}}</strong> が次の権限を要求しています。</p>
-<ul>
-{{range .Scopes}}<li><code>{{.}}</code></li>{{end}}
+<ul class="consent-scopes">
+{{range .ScopeViews}}<li><strong>{{.Label}}</strong><div><code>{{.ID}}</code></div></li>{{end}}
 </ul>
 {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
 <form method="post" action="/consent">

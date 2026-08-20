@@ -10,4 +10,5 @@ type Repos interface {
 	AccessTokens
 	Consents
 	Audits
+	Organizations
 }

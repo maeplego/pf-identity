@@ -109,10 +109,14 @@ func (s *Store) SetUserDisabled(ctx context.Context, id string, disabled bool) e
 
 func (s *Store) PutSession(ctx context.Context, sess domain.Session) error {
 	_, err := s.pool.Exec(ctx, `
-		INSERT INTO sessions (token_hash, user_id, sid, expires_at)
-		VALUES ($1, $2, $3, $4)
-		ON CONFLICT (token_hash) DO UPDATE SET user_id = EXCLUDED.user_id, sid = EXCLUDED.sid, expires_at = EXCLUDED.expires_at`,
-		sess.TokenHash, sess.UserID, sess.SID, sess.ExpiresAt.UTC(),
+		INSERT INTO sessions (token_hash, user_id, sid, active_org_id, expires_at)
+		VALUES ($1, $2, $3, $4, $5)
+		ON CONFLICT (token_hash) DO UPDATE SET
+			user_id = EXCLUDED.user_id,
+			sid = EXCLUDED.sid,
+			active_org_id = EXCLUDED.active_org_id,
+			expires_at = EXCLUDED.expires_at`,
+		sess.TokenHash, sess.UserID, sess.SID, sess.ActiveOrgID, sess.ExpiresAt.UTC(),
 	)
 	return mapErr(err)
 }
@@ -120,8 +124,19 @@ func (s *Store) PutSession(ctx context.Context, sess domain.Session) error {
 func (s *Store) GetSession(ctx context.Context, tokenHash string) (domain.Session, error) {
 	var sess domain.Session
 	err := s.pool.QueryRow(ctx, `
-		SELECT token_hash, user_id, sid, expires_at FROM sessions WHERE token_hash = $1`, tokenHash,
-	).Scan(&sess.TokenHash, &sess.UserID, &sess.SID, &sess.ExpiresAt)
+		SELECT token_hash, user_id, sid, active_org_id, expires_at FROM sessions WHERE token_hash = $1`, tokenHash,
+	).Scan(&sess.TokenHash, &sess.UserID, &sess.SID, &sess.ActiveOrgID, &sess.ExpiresAt)
+	if err != nil {
+		return domain.Session{}, mapErr(err)
+	}
+	return sess, nil
+}
+
+func (s *Store) GetSessionBySID(ctx context.Context, sid string) (domain.Session, error) {
+	var sess domain.Session
+	err := s.pool.QueryRow(ctx, `
+		SELECT token_hash, user_id, sid, active_org_id, expires_at FROM sessions WHERE sid = $1 LIMIT 1`, sid,
+	).Scan(&sess.TokenHash, &sess.UserID, &sess.SID, &sess.ActiveOrgID, &sess.ExpiresAt)
 	if err != nil {
 		return domain.Session{}, mapErr(err)
 	}

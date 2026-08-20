@@ -30,7 +30,8 @@ services:
       IDENTITY_SEED_PUBLIC_REDIRECT_URI: http://localhost:3001/callback
       IDENTITY_SEED_DEMO_RP_B_REDIRECT_URI: http://localhost:3003/callback
       IDENTITY_SEED_EXTRA_CLIENTS: >-
-        [{"id":"pf-finance-web","name":"Finance Web","redirectUri":"http://localhost:3014/callback"},
+        [{"id":"pf-media-web","name":"Media Web","redirectUri":"http://localhost:3004/callback"},
+        {"id":"pf-finance-web","name":"Finance Web","redirectUri":"http://localhost:3014/callback"},
         {"id":"pf-workspace-web","name":"Workspace Web","redirectUri":"http://localhost:3006/callback"},
         {"id":"pf-calendar-web","name":"Calendar Web","redirectUri":"http://localhost:3005/callback"},
         {"id":"pf-commerce-web","name":"Commerce Web","redirectUri":"http://localhost:3009/callback"},

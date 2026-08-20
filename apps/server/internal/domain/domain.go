@@ -46,10 +46,41 @@ type ClientPatch struct {
 
 // Session is a browser login at the IdP (not an OAuth access token).
 type Session struct {
-	TokenHash string
+	TokenHash   string
+	UserID      string
+	SID         string
+	ActiveOrgID string
+	ExpiresAt   time.Time
+}
+
+// OrgRole is tenant-scoped membership at an organization.
+type OrgRole string
+
+const (
+	OrgRoleOwner  OrgRole = "owner"
+	OrgRoleMember OrgRole = "member"
+)
+
+// Organization is a tenant boundary shared across relying parties.
+type Organization struct {
+	ID        string
+	Name      string
+	CreatedAt time.Time
+}
+
+// OrganizationMembership binds a global user to an organization with a tenant role.
+type OrganizationMembership struct {
+	OrgID     string
 	UserID    string
-	SID       string
-	ExpiresAt time.Time
+	Role      OrgRole
+	JoinedAt  time.Time
+}
+
+// OrgMembershipView is membership with org metadata for userinfo.
+type OrgMembershipView struct {
+	OrgID   string `json:"org_id"`
+	OrgName string `json:"org_name"`
+	Role    string `json:"role"`
 }
 
 // AuthCode is a one-time authorization code. The plaintext is never stored.

@@ -15,6 +15,7 @@ type Users interface {
 type Sessions interface {
 	PutSession(ctx context.Context, s Session) error
 	GetSession(ctx context.Context, tokenHash string) (Session, error)
+	GetSessionBySID(ctx context.Context, sid string) (Session, error)
 	DeleteSession(ctx context.Context, tokenHash string) error
 	// AddSessionClient records that this OP session issued tokens to a client (Front-Channel fan-out).
 	AddSessionClient(ctx context.Context, sid, clientID string) error
@@ -62,6 +63,17 @@ type Audits interface {
 	AppendAudit(ctx context.Context, e AuditEvent) error
 	// ListAudits returns newest-first pages. AfterID is the last id from the previous page.
 	ListAudits(ctx context.Context, limit int, afterID string) (AuditPage, error)
+}
+
+// Organizations persists tenant boundaries and memberships.
+type Organizations interface {
+	CreateOrganization(ctx context.Context, org Organization) error
+	GetOrganization(ctx context.Context, id string) (Organization, error)
+	ListOrganizationsForUser(ctx context.Context, userID string) ([]Organization, error)
+	AddOrganizationMember(ctx context.Context, m OrganizationMembership) error
+	ListOrganizationMembers(ctx context.Context, orgID string) ([]OrganizationMembership, error)
+	GetOrganizationMembership(ctx context.Context, orgID, userID string) (OrganizationMembership, error)
+	SetSessionActiveOrg(ctx context.Context, tokenHash, orgID string) error
 }
 
 // AuditPage is one newest-first window. Next is empty when there is no older page.

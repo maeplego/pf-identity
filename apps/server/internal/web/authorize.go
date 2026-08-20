@@ -76,6 +76,7 @@ func (s *Server) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 		CSRF:       tok,
 		ClientName: client.Name,
 		Scopes:     scopes,
+		ScopeViews: scopeViews(scopes),
 		RequestID:  reqID,
 	}, http.StatusOK)
 }
