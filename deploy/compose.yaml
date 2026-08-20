@@ -29,6 +29,13 @@ services:
       IDENTITY_SEED_PUBLIC_CLIENT_ID: sample-rp
       IDENTITY_SEED_PUBLIC_REDIRECT_URI: http://localhost:3001/callback
       IDENTITY_SEED_DEMO_RP_B_REDIRECT_URI: http://localhost:3003/callback
+      IDENTITY_SEED_EXTRA_CLIENTS: >-
+        [{"id":"pf-finance-web","name":"Finance Web","redirectUri":"http://localhost:3014/callback"},
+        {"id":"pf-workspace-web","name":"Workspace Web","redirectUri":"http://localhost:3006/callback"},
+        {"id":"pf-calendar-web","name":"Calendar Web","redirectUri":"http://localhost:3005/callback"},
+        {"id":"pf-commerce-web","name":"Commerce Web","redirectUri":"http://localhost:3009/callback"},
+        {"id":"pf-blog-web","name":"Blog Web","redirectUri":"http://localhost:3007/callback"},
+        {"id":"pf-attendance-web","name":"Attendance Web","redirectUri":"http://localhost:3019/callback"}]
     ports:
       - "8080:8080"
     depends_on:

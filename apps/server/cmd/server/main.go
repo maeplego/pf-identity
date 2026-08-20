@@ -43,6 +43,9 @@ func main() {
 	if err := seed.DemoRPB(context.Background(), repos, cfg); err != nil {
 		log.Fatal(err)
 	}
+	if err := seed.ExtraClients(context.Background(), repos, cfg); err != nil {
+		log.Fatal(err)
+	}
 	if err := seed.DemoUser(context.Background(), repos, cfg); err != nil {
 		log.Fatal(err)
 	}

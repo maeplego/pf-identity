@@ -3,6 +3,7 @@ package seed
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"log"
 	"strings"
@@ -39,6 +40,41 @@ func DemoRPB(ctx context.Context, clients domain.Clients, cfg config.Config) err
 		name = "Sample RP B"
 	}
 	return upsertPublicClient(ctx, clients, id, name, cfg.SeedDemoRPBRedirect, cfg.SeedDemoRPBPostLogout)
+}
+
+type extraClient struct {
+	ID         string `json:"id"`
+	Name       string `json:"name"`
+	RedirectURI string `json:"redirectUri"`
+	PostLogout  string `json:"postLogoutRedirectUri"`
+}
+
+// ExtraClients seeds additional public clients from IDENTITY_SEED_EXTRA_CLIENTS JSON.
+// Sample RP and sample-rp-b stay in dedicated env vars so e2e clients stay at two named slots.
+func ExtraClients(ctx context.Context, clients domain.Clients, cfg config.Config) error {
+	raw := strings.TrimSpace(cfg.SeedExtraClientsJSON)
+	if raw == "" {
+		return nil
+	}
+	var list []extraClient
+	if err := json.Unmarshal([]byte(raw), &list); err != nil {
+		return err
+	}
+	for _, item := range list {
+		id := strings.TrimSpace(item.ID)
+		redirect := strings.TrimSpace(item.RedirectURI)
+		if id == "" || redirect == "" {
+			return errors.New("IDENTITY_SEED_EXTRA_CLIENTS entries need id and redirectUri")
+		}
+		name := strings.TrimSpace(item.Name)
+		if name == "" {
+			name = id
+		}
+		if err := upsertPublicClient(ctx, clients, id, name, redirect, strings.TrimSpace(item.PostLogout)); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // DemoUser creates a local demo account when IDENTITY_SEED_DEMO_EMAIL is set.

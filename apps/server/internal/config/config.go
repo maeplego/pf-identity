@@ -42,6 +42,7 @@ type Config struct {
 	SeedDemoEmail          string
 	SeedDemoPassword       string
 	SeedDemoName           string
+	SeedExtraClientsJSON   string
 }
 
 // FromEnv reads IDENTITY_* variables. Missing optional values use conservative locals.
@@ -66,6 +67,7 @@ func FromEnv() (Config, error) {
 		SeedDemoEmail:        strings.TrimSpace(os.Getenv("IDENTITY_SEED_DEMO_EMAIL")),
 		SeedDemoPassword:     os.Getenv("IDENTITY_SEED_DEMO_PASSWORD"),
 		SeedDemoName:         envOr("IDENTITY_SEED_DEMO_NAME", "Demo User"),
+		SeedExtraClientsJSON: strings.TrimSpace(os.Getenv("IDENTITY_SEED_EXTRA_CLIENTS")),
 	}
 
 	var err error

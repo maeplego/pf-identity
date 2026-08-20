@@ -98,10 +98,36 @@ func TestDemoRPBInsertsSecondClient(t *testing.T) {
 	}
 }
 
-func TestDemoRPBSkippedWhenUnset(t *testing.T) {
+func TestExtraClientsInsertsJSONList(t *testing.T) {
 	store := memory.NewStore()
-	if err := DemoRPB(context.Background(), store, config.Config{}); err != nil {
+	cfg := config.Config{
+		SeedExtraClientsJSON: `[{"id":"pf-finance-web","name":"Finance","redirectUri":"http://localhost:3014/callback"}]`,
+	}
+	if err := ExtraClients(context.Background(), store, cfg); err != nil {
 		t.Fatal(err)
+	}
+	c, err := store.GetClient(context.Background(), "pf-finance-web")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.RedirectURIs[0] != "http://localhost:3014/callback" {
+		t.Fatalf("%+v", c)
+	}
+	if c.PostLogoutRedirectURIs[0] != "http://localhost:3014/logged-out" {
+		t.Fatalf("post_logout %+v", c.PostLogoutRedirectURIs)
+	}
+}
+
+func TestExtraClientsSkippedWhenUnset(t *testing.T) {
+	if err := ExtraClients(context.Background(), memory.NewStore(), config.Config{}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestExtraClientsRejectsBadJSON(t *testing.T) {
+	err := ExtraClients(context.Background(), memory.NewStore(), config.Config{SeedExtraClientsJSON: "{"})
+	if err == nil {
+		t.Fatal("expected error")
 	}
 }
 
