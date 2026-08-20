@@ -25,32 +25,39 @@ export default async function Home({
   }
 
   return (
-    <main style={{ fontFamily: "sans-serif", maxWidth: 640, margin: "2rem auto" }}>
-      <h1 data-testid="rp-title">{rpLabel()}</h1>
-      <p>学習用 RP です。authorization code + PKCE をサーバー側で交換します。</p>
+    <>
+      <section className="hero">
+        <h1 className="page-title" data-testid="rp-title">
+          {rpLabel()}
+        </h1>
+        <p className="page-lead">学習用 RP です。authorization code + PKCE をサーバー側で交換します。</p>
+      </section>
+
       {q.error ? (
-        <p role="alert" data-testid="auth-error">
+        <p className="error" role="alert" data-testid="auth-error">
           エラー: {q.error}
         </p>
       ) : null}
+
       {userinfo ? (
-        <>
-          <h2>UserInfo</h2>
+        <div className="card stack">
+          <h2 style={{ margin: 0 }}>UserInfo</h2>
           <pre data-testid="userinfo">{JSON.stringify(userinfo, null, 2)}</pre>
           <form action="/logout" method="post">
-            <button type="submit" data-testid="logout">ログアウト</button>
+            <button type="submit" className="btn btn-secondary" data-testid="logout">
+              ログアウト
+            </button>
           </form>
-        </>
+        </div>
       ) : (
-        <>
-          {userinfoError ? <p>{userinfoError}</p> : null}
-          <p>
-            <a href="/login" data-testid="login-link">
-              IdP でログイン
-            </a>
-          </p>
-        </>
+        <div className="card stack">
+          {userinfoError ? <p className="error">{userinfoError}</p> : null}
+          <p className="muted">IdP でログインして UserInfo を取得します。</p>
+          <a href="/login" className="btn" data-testid="login-link">
+            IdP でログイン
+          </a>
+        </div>
       )}
-    </main>
+    </>
   );
 }
