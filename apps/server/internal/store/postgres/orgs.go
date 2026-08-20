@@ -26,6 +26,24 @@ func (s *Store) GetOrganization(ctx context.Context, id string) (domain.Organiza
 	return org, nil
 }
 
+func (s *Store) ListOrganizations(ctx context.Context) ([]domain.Organization, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT id, name, created_at FROM organizations ORDER BY created_at`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []domain.Organization
+	for rows.Next() {
+		var org domain.Organization
+		if err := rows.Scan(&org.ID, &org.Name, &org.CreatedAt); err != nil {
+			return nil, err
+		}
+		out = append(out, org)
+	}
+	return out, rows.Err()
+}
+
 func (s *Store) ListOrganizationsForUser(ctx context.Context, userID string) ([]domain.Organization, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT o.id, o.name, o.created_at
@@ -90,6 +108,31 @@ func (s *Store) GetOrganizationMembership(ctx context.Context, orgID, userID str
 	}
 	m.Role = domain.OrgRole(role)
 	return m, nil
+}
+
+func (s *Store) UpdateOrganizationMemberRole(ctx context.Context, orgID, userID string, role domain.OrgRole) error {
+	tag, err := s.pool.Exec(ctx, `
+		UPDATE organization_memberships SET role = $3 WHERE org_id = $1 AND user_id = $2`,
+		orgID, userID, string(role))
+	if err != nil {
+		return mapErr(err)
+	}
+	if tag.RowsAffected() == 0 {
+		return domain.ErrNotFound
+	}
+	return nil
+}
+
+func (s *Store) RemoveOrganizationMember(ctx context.Context, orgID, userID string) error {
+	tag, err := s.pool.Exec(ctx, `
+		DELETE FROM organization_memberships WHERE org_id = $1 AND user_id = $2`, orgID, userID)
+	if err != nil {
+		return mapErr(err)
+	}
+	if tag.RowsAffected() == 0 {
+		return domain.ErrNotFound
+	}
+	return nil
 }
 
 func (s *Store) SetSessionActiveOrg(ctx context.Context, tokenHash, orgID string) error {

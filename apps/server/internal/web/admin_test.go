@@ -227,6 +227,92 @@ func TestAdminAuditPaging(t *testing.T) {
 	}
 }
 
+func TestAdminOrganizationMembers(t *testing.T) {
+	srv, store := testServer(t)
+	srv.Cfg.AdminToken = "admin-test-token"
+	ts := httptest.NewServer(srv)
+	t.Cleanup(ts.Close)
+	clk := srv.Clock
+
+	owner := domain.User{ID: id.New(), Email: "org-owner@example.com", Name: "Owner", PasswordHash: "x", CreatedAt: clk.Now()}
+	member := domain.User{ID: id.New(), Email: "org-member@example.com", Name: "Member", PasswordHash: "x", CreatedAt: clk.Now()}
+	if err := store.Create(context.Background(), owner); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Create(context.Background(), member); err != nil {
+		t.Fatal(err)
+	}
+
+	res := adminJSON(t, ts.URL, "admin-test-token", http.MethodPost, "/admin/api/organizations",
+		`{"name":"Acme","owner_email":"org-owner@example.com"}`)
+	if res.StatusCode != http.StatusCreated {
+		b, _ := io.ReadAll(res.Body)
+		res.Body.Close()
+		t.Fatalf("create org %d %s", res.StatusCode, b)
+	}
+	var org struct {
+		ID string `json:"id"`
+	}
+	if err := json.NewDecoder(res.Body).Decode(&org); err != nil {
+		t.Fatal(err)
+	}
+	res.Body.Close()
+
+	res = adminJSON(t, ts.URL, "admin-test-token", http.MethodPost, "/admin/api/organizations/"+org.ID+"/members",
+		`{"email":"org-member@example.com","role":"member"}`)
+	if res.StatusCode != http.StatusCreated {
+		b, _ := io.ReadAll(res.Body)
+		res.Body.Close()
+		t.Fatalf("add member %d %s", res.StatusCode, b)
+	}
+	res.Body.Close()
+
+	res = adminJSON(t, ts.URL, "admin-test-token", http.MethodGet, "/admin/api/organizations/"+org.ID+"/members", "")
+	raw, _ := io.ReadAll(res.Body)
+	res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("list members %d %s", res.StatusCode, raw)
+	}
+	var members []struct {
+		UserID string `json:"user_id"`
+		Role   string `json:"role"`
+		Email  string `json:"email"`
+	}
+	if err := json.Unmarshal(raw, &members); err != nil {
+		t.Fatal(err)
+	}
+	if len(members) != 2 {
+		t.Fatalf("want 2 members got %d", len(members))
+	}
+
+	res = adminJSON(t, ts.URL, "admin-test-token", http.MethodPatch,
+		"/admin/api/organizations/"+org.ID+"/members/"+member.ID, `{"role":"owner"}`)
+	if res.StatusCode != http.StatusOK {
+		b, _ := io.ReadAll(res.Body)
+		res.Body.Close()
+		t.Fatalf("promote %d %s", res.StatusCode, b)
+	}
+	res.Body.Close()
+
+	res = adminJSON(t, ts.URL, "admin-test-token", http.MethodDelete,
+		"/admin/api/organizations/"+org.ID+"/members/"+owner.ID, "")
+	if res.StatusCode != http.StatusNoContent {
+		b, _ := io.ReadAll(res.Body)
+		res.Body.Close()
+		t.Fatalf("remove former owner %d %s", res.StatusCode, b)
+	}
+	res.Body.Close()
+
+	res = adminJSON(t, ts.URL, "admin-test-token", http.MethodDelete,
+		"/admin/api/organizations/"+org.ID+"/members/"+member.ID, "")
+	if res.StatusCode != http.StatusForbidden {
+		b, _ := io.ReadAll(res.Body)
+		res.Body.Close()
+		t.Fatalf("last owner remove want 403 got %d %s", res.StatusCode, b)
+	}
+	res.Body.Close()
+}
+
 func adminJSON(t *testing.T, base, token, method, path, body string) *http.Response {
 	t.Helper()
 	var rdr io.Reader

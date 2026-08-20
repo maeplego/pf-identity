@@ -93,3 +93,41 @@ export async function listAudits(after = "", limit = 20): Promise<AuditPage> {
   }
   return (await res.json()) as AuditPage;
 }
+
+export type Organization = {
+  id: string;
+  name: string;
+  created_at: string;
+};
+
+export type OrgMember = {
+  user_id: string;
+  email: string;
+  name: string;
+  role: string;
+  joined_at: string;
+};
+
+export async function listOrganizations(): Promise<Organization[]> {
+  const res = await adminFetch("/admin/api/organizations");
+  if (!res.ok) {
+    throw new Error(`list organizations ${res.status}`);
+  }
+  return (await res.json()) as Organization[];
+}
+
+export async function getOrganization(id: string): Promise<Organization> {
+  const res = await adminFetch(`/admin/api/organizations/${encodeURIComponent(id)}`);
+  if (!res.ok) {
+    throw new Error(`get organization ${res.status}`);
+  }
+  return (await res.json()) as Organization;
+}
+
+export async function listOrganizationMembers(id: string): Promise<OrgMember[]> {
+  const res = await adminFetch(`/admin/api/organizations/${encodeURIComponent(id)}/members`);
+  if (!res.ok) {
+    throw new Error(`list org members ${res.status}`);
+  }
+  return (await res.json()) as OrgMember[];
+}

@@ -69,10 +69,13 @@ type Audits interface {
 type Organizations interface {
 	CreateOrganization(ctx context.Context, org Organization) error
 	GetOrganization(ctx context.Context, id string) (Organization, error)
+	ListOrganizations(ctx context.Context) ([]Organization, error)
 	ListOrganizationsForUser(ctx context.Context, userID string) ([]Organization, error)
 	AddOrganizationMember(ctx context.Context, m OrganizationMembership) error
 	ListOrganizationMembers(ctx context.Context, orgID string) ([]OrganizationMembership, error)
 	GetOrganizationMembership(ctx context.Context, orgID, userID string) (OrganizationMembership, error)
+	UpdateOrganizationMemberRole(ctx context.Context, orgID, userID string, role OrgRole) error
+	RemoveOrganizationMember(ctx context.Context, orgID, userID string) error
 	SetSessionActiveOrg(ctx context.Context, tokenHash, orgID string) error
 	SetSessionActiveOrgBySID(ctx context.Context, sid, orgID string) error
 }

@@ -101,3 +101,66 @@ export async function setUserDisabled(formData: FormData) {
   }
   redirect("/users");
 }
+
+export async function createOrganization(formData: FormData) {
+  "use server";
+  const res = await adminFetch("/admin/api/organizations", {
+    method: "POST",
+    body: JSON.stringify({
+      name: String(formData.get("name") ?? "").trim(),
+      owner_email: String(formData.get("owner_email") ?? "").trim(),
+    }),
+  });
+  if (!res.ok) {
+    redirect(`/orgs?error=${encodeURIComponent(await res.text())}`);
+  }
+  const body = (await res.json()) as { id: string };
+  redirect(`/orgs/${encodeURIComponent(body.id)}`);
+}
+
+export async function addOrganizationMember(formData: FormData) {
+  "use server";
+  const orgId = String(formData.get("org_id") ?? "");
+  const res = await adminFetch(`/admin/api/organizations/${encodeURIComponent(orgId)}/members`, {
+    method: "POST",
+    body: JSON.stringify({
+      email: String(formData.get("email") ?? "").trim(),
+      role: String(formData.get("role") ?? "member"),
+    }),
+  });
+  if (!res.ok) {
+    redirect(`/orgs/${encodeURIComponent(orgId)}?error=${encodeURIComponent(await res.text())}`);
+  }
+  redirect(`/orgs/${encodeURIComponent(orgId)}`);
+}
+
+export async function updateOrganizationMemberRole(formData: FormData) {
+  "use server";
+  const orgId = String(formData.get("org_id") ?? "");
+  const userId = String(formData.get("user_id") ?? "");
+  const res = await adminFetch(
+    `/admin/api/organizations/${encodeURIComponent(orgId)}/members/${encodeURIComponent(userId)}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ role: String(formData.get("role") ?? "member") }),
+    },
+  );
+  if (!res.ok) {
+    redirect(`/orgs/${encodeURIComponent(orgId)}?error=${encodeURIComponent(await res.text())}`);
+  }
+  redirect(`/orgs/${encodeURIComponent(orgId)}`);
+}
+
+export async function removeOrganizationMember(formData: FormData) {
+  "use server";
+  const orgId = String(formData.get("org_id") ?? "");
+  const userId = String(formData.get("user_id") ?? "");
+  const res = await adminFetch(
+    `/admin/api/organizations/${encodeURIComponent(orgId)}/members/${encodeURIComponent(userId)}`,
+    { method: "DELETE" },
+  );
+  if (!res.ok) {
+    redirect(`/orgs/${encodeURIComponent(orgId)}?error=${encodeURIComponent(await res.text())}`);
+  }
+  redirect(`/orgs/${encodeURIComponent(orgId)}`);
+}

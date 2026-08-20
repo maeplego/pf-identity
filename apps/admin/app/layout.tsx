@@ -15,6 +15,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <nav className="site-nav">
               <a href="/">ホーム</a>
               <a href="/clients">クライアント</a>
+              <a href="/orgs">組織</a>
               <a href="/users">ユーザー</a>
               <a href="/audits">監査</a>
             </nav>

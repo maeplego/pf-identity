@@ -27,6 +27,17 @@ func (s *Store) GetOrganization(_ context.Context, id string) (domain.Organizati
 	return org, nil
 }
 
+func (s *Store) ListOrganizations(_ context.Context) ([]domain.Organization, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := make([]domain.Organization, 0, len(s.orgs))
+	for _, org := range s.orgs {
+		out = append(out, org)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].CreatedAt.Before(out[j].CreatedAt) })
+	return out, nil
+}
+
 func (s *Store) ListOrganizationsForUser(_ context.Context, userID string) ([]domain.Organization, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -82,6 +93,36 @@ func (s *Store) GetOrganizationMembership(_ context.Context, orgID, userID strin
 		return domain.OrganizationMembership{}, domain.ErrNotFound
 	}
 	return m, nil
+}
+
+func (s *Store) UpdateOrganizationMemberRole(_ context.Context, orgID, userID string, role domain.OrgRole) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	members, ok := s.orgMembers[orgID]
+	if !ok {
+		return domain.ErrNotFound
+	}
+	m, ok := members[userID]
+	if !ok {
+		return domain.ErrNotFound
+	}
+	m.Role = role
+	members[userID] = m
+	return nil
+}
+
+func (s *Store) RemoveOrganizationMember(_ context.Context, orgID, userID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	members, ok := s.orgMembers[orgID]
+	if !ok {
+		return domain.ErrNotFound
+	}
+	if _, ok := members[userID]; !ok {
+		return domain.ErrNotFound
+	}
+	delete(members, userID)
+	return nil
 }
 
 func (s *Store) SetSessionActiveOrg(_ context.Context, tokenHash, orgID string) error {

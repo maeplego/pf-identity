@@ -12,6 +12,10 @@ export default function Home() {
           <strong>クライアント CRUD</strong>
           <p className="muted">OAuth クライアントの登録・更新・削除</p>
         </a>
+        <a className="card" href="/orgs">
+          <strong>組織・メンバー</strong>
+          <p className="muted">テナント作成と owner/member 管理</p>
+        </a>
         <a className="card" href="/users">
           <strong>ユーザーの無効化</strong>
           <p className="muted">アカウント状態の管理</p>
