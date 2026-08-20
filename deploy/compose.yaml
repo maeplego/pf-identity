@@ -35,7 +35,8 @@ services:
         {"id":"pf-calendar-web","name":"Calendar Web","redirectUri":"http://localhost:3005/callback"},
         {"id":"pf-commerce-web","name":"Commerce Web","redirectUri":"http://localhost:3009/callback"},
         {"id":"pf-blog-web","name":"Blog Web","redirectUri":"http://localhost:3007/callback"},
-        {"id":"pf-attendance-web","name":"Attendance Web","redirectUri":"http://localhost:3019/callback"}]
+        {"id":"pf-attendance-web","name":"Attendance Web","redirectUri":"http://localhost:3019/callback"},
+        {"id":"pf-habit-mobile","name":"Habit Mobile","redirectUri":"pfhabit://callback"}]
     ports:
       - "8080:8080"
     depends_on:
