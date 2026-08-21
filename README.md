@@ -1,4 +1,9 @@
-﻿# pf-identity
+# pf-identity
+
+| まず | リンク |
+| --- | --- |
+| 採用の位置づけ | [HIRING.md](https://github.com/maeplego/portfolio-plan/blob/master/portfolio-plan/HIRING.md) |
+| 確認手順 | [REVIEW.md](https://github.com/maeplego/portfolio-plan/blob/master/portfolio-plan/REVIEW.md) |
 
 学習用の OpenID Connect Identity Provider です。認可コード + PKCE、同意画面、トークン発行、JWKS、ログアウト連動までを実装しています。**本番の認証基盤の置き換えではありません。**
 
