@@ -137,4 +137,67 @@ func TestFromEnvSeedDemoUser(t *testing.T) {
 	if cfg.SeedDemoPassword == "" {
 		t.Fatal("password should be loaded")
 	}
+	if cfg.Env != EnvDevelopment {
+		t.Fatalf("env = %q", cfg.Env)
+	}
+}
+
+func TestFromEnvProductionRejectsDevKeys(t *testing.T) {
+	t.Setenv("IDENTITY_ENV", "production")
+	t.Setenv("IDENTITY_DEV_GENERATE_KEYS", "true")
+	t.Setenv("IDENTITY_STORE", "postgres")
+	t.Setenv("IDENTITY_DATABASE_URL", "postgres://idp:idp@localhost/idp")
+	t.Setenv("IDENTITY_RSA_PRIVATE_KEY_PATH", "/keys/idp.pem")
+	t.Setenv("IDENTITY_COOKIE_SECURE", "true")
+
+	if _, err := FromEnv(); err == nil {
+		t.Fatal("expected error when production enables IDENTITY_DEV_GENERATE_KEYS")
+	}
+}
+
+func TestFromEnvProductionRequiresSecureCookie(t *testing.T) {
+	t.Setenv("IDENTITY_ENV", "production")
+	t.Setenv("IDENTITY_DEV_GENERATE_KEYS", "false")
+	t.Setenv("IDENTITY_STORE", "postgres")
+	t.Setenv("IDENTITY_DATABASE_URL", "postgres://idp:idp@localhost/idp")
+	t.Setenv("IDENTITY_RSA_PRIVATE_KEY_PATH", "/keys/idp.pem")
+	t.Setenv("IDENTITY_COOKIE_SECURE", "false")
+
+	if _, err := FromEnv(); err == nil {
+		t.Fatal("expected error when production has CookieSecure false")
+	}
+}
+
+func TestFromEnvStagingAllowsInsecureCookieWithFileKeys(t *testing.T) {
+	t.Setenv("IDENTITY_ENV", "staging")
+	t.Setenv("IDENTITY_DEV_GENERATE_KEYS", "false")
+	t.Setenv("IDENTITY_STORE", "postgres")
+	t.Setenv("IDENTITY_DATABASE_URL", "postgres://idp:idp@localhost/idp")
+	t.Setenv("IDENTITY_RSA_PRIVATE_KEY_PATH", "/keys/idp.pem")
+	t.Setenv("IDENTITY_COOKIE_SECURE", "false")
+
+	cfg, err := FromEnv()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Env != EnvStaging {
+		t.Fatalf("env = %q", cfg.Env)
+	}
+}
+
+func TestFromEnvProductionOK(t *testing.T) {
+	t.Setenv("IDENTITY_ENV", "production")
+	t.Setenv("IDENTITY_DEV_GENERATE_KEYS", "false")
+	t.Setenv("IDENTITY_STORE", "postgres")
+	t.Setenv("IDENTITY_DATABASE_URL", "postgres://idp:idp@localhost/idp")
+	t.Setenv("IDENTITY_RSA_PRIVATE_KEY_PATH", "/keys/idp.pem")
+	t.Setenv("IDENTITY_COOKIE_SECURE", "true")
+
+	cfg, err := FromEnv()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Env != EnvProduction || !cfg.CookieSecure {
+		t.Fatalf("%+v", cfg)
+	}
 }
