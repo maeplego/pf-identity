@@ -29,6 +29,9 @@ services:
       IDENTITY_SEED_PUBLIC_CLIENT_ID: sample-rp
       IDENTITY_SEED_PUBLIC_REDIRECT_URI: http://localhost:3001/callback
       IDENTITY_SEED_DEMO_RP_B_REDIRECT_URI: http://localhost:3003/callback
+      IDENTITY_SEED_DEMO_EMAIL: ${IDENTITY_SEED_DEMO_EMAIL:-demo@example.test}
+      IDENTITY_SEED_DEMO_PASSWORD: ${IDENTITY_SEED_DEMO_PASSWORD:-demo-pass-change-me}
+      IDENTITY_SEED_DEMO_NAME: ${IDENTITY_SEED_DEMO_NAME:-Demo User}
       IDENTITY_SEED_EXTRA_CLIENTS: >-
         [{"id":"pf-media-web","name":"Media Web","redirectUri":"http://localhost:3004/callback"},
         {"id":"pf-finance-web","name":"Finance Web","redirectUri":"http://localhost:3014/callback"},

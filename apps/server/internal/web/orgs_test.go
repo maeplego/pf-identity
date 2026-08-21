@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/portfolio/pf-identity-server/internal/clock"
 	"github.com/portfolio/pf-identity-server/internal/domain"
 	"github.com/portfolio/pf-identity-server/internal/id"
 	"github.com/portfolio/pf-identity-server/internal/oauth"
@@ -17,13 +16,14 @@ import (
 
 func TestOrganizationAPIAndOrgClaims(t *testing.T) {
 	srv, repos := testServer(t)
-	clk := clock.Fixed{T: time.Date(2026, 8, 20, 12, 0, 0, 0, time.UTC)}
-	user := domain.User{ID: id.New(), Email: "owner@example.com", Name: "Owner", PasswordHash: "x", CreatedAt: clk.Now()}
+	// Expiry must be relative to the server clock (Real), not a Fixed past instant.
+	now := srv.Clock.Now()
+	user := domain.User{ID: id.New(), Email: "owner@example.com", Name: "Owner", PasswordHash: "x", CreatedAt: now}
 	if err := repos.Create(t.Context(), user); err != nil {
 		t.Fatal(err)
 	}
 
-	access := putAccess(t, repos, user.ID, []string{"openid", "org"}, clk.Now().Add(time.Hour))
+	access := putAccess(t, repos, user.ID, []string{"openid", "org"}, now.Add(time.Hour))
 
 	body, _ := json.Marshal(map[string]string{"name": "Acme"})
 	req := httptest.NewRequest(http.MethodPost, "/v1/organizations", bytes.NewReader(body))
@@ -81,11 +81,11 @@ func TestOrganizationAPIAndOrgClaims(t *testing.T) {
 	if err := json.NewDecoder(rr.Body).Decode(&second); err != nil {
 		t.Fatal(err)
 	}
-	sess := domain.Session{TokenHash: id.New(), UserID: user.ID, SID: "sid-org-switch", ActiveOrgID: created.ID, ExpiresAt: clk.Now().Add(time.Hour)}
+	sess := domain.Session{TokenHash: id.New(), UserID: user.ID, SID: "sid-org-switch", ActiveOrgID: created.ID, ExpiresAt: now.Add(time.Hour)}
 	if err := repos.PutSession(t.Context(), sess); err != nil {
 		t.Fatal(err)
 	}
-	access2 := putAccessSID(t, repos, user.ID, []string{"openid", "org"}, clk.Now().Add(time.Hour), sess.SID)
+	access2 := putAccessSID(t, repos, user.ID, []string{"openid", "org"}, now.Add(time.Hour), sess.SID)
 
 	switchBody, _ := json.Marshal(map[string]string{"orgId": second.ID})
 	req = httptest.NewRequest(http.MethodPut, "/v1/active-org", bytes.NewReader(switchBody))
